@@ -1,9 +1,9 @@
-# <img src="https://github.com/jiescoding/Narwhal-Trader/tree/main#/Assets/Logo.svg" width ="500">
+# <img src="https://github.com/jiescoding/Narwhal-Trader/blob/main/Assets/Logo.svg" width ="500">
 
-##Concept
+## Concept
 Customizable trader for automating asset management
 
-##Features
+## Features
 Should be able to:
   - Run on a cloud with access to the trading market, global information scraping, and engage with foreign markets 24/7
   - Client-side account access to the Narwhal trading platform
