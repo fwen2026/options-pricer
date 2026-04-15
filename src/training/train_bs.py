@@ -5,50 +5,88 @@ import torch.optim as optim
 
 from src.models.bs_model import BSModel
 
-# extract data and convert to tensors
+
+def get_device():
+    """Get the best available device for training."""
+    return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+
+
 def load_data(filepath):
+    """
+    Load the dataset from a .npz file.
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: The input features and target labels.
+    """
     data = np.load(filepath)
     X = data['X']
     y_call = data['y_call']
     return X, y_call
 
+
 def preprocess_data(X, y_call, device):
+    """
+    Preprocess the input data and labels.
+    Returns:
+        Tuple[torch.Tensor, torch.Tensor]: The preprocessed input and target tensors.
+    """
     X_tensor = torch.tensor(X, dtype=torch.float32).to(device)
     y_call_tensor = torch.tensor(y_call, dtype=torch.float32).unsqueeze(1).to(device)
     return X_tensor, y_call_tensor
 
-# model and training device setup
-model = BSModel()
-device = torch.device(
-    "mps" if torch.backends.mps.is_available() else "cpu"
-)
 
-model.to(device)
+def train_model(model, X_train, y_train, X_test=None, y_test=None,
+                device=None, epochs=200, lr=1e-3):
+    """
+    Train the model on provided data.
+    Returns the trained model.
+    """
+    if device is None:
+        device = get_device()
 
-X_train, y_train = load_data('src/data/bs_dataset.npz')
-X_test, y_test = load_data('src/data/bs_dataset_test.npz')
-X_tensor, y_call_tensor = preprocess_data(X_train, y_train, device)
-X_tensor_test, y_call_tensor_test = preprocess_data(X_test, y_test, device)
+    model.to(device)
+    X_tensor, y_tensor = preprocess_data(X_train, y_train, device)
 
-loss_fn = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    if X_test is not None and y_test is not None:
+        X_tensor_test, y_tensor_test = preprocess_data(X_test, y_test, device)
+    else:
+        X_tensor_test, y_tensor_test = None, None
 
-epochs = 200
+    loss_fn = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
 
-# Start training!
-for n in range(epochs):
-    model.train()
-    optimizer.zero_grad()
-    
-    y_call_pred = model(X_tensor)
-    loss = loss_fn(y_call_pred, y_call_tensor)
-    loss.backward()
-    optimizer.step()
+    for n in range(epochs):
+        model.train()
+        optimizer.zero_grad()
 
-    model.eval()
-    with torch.no_grad():
-        y_call_pred_test = model(X_tensor_test)
-        test_loss = loss_fn(y_call_pred_test, y_call_tensor_test)
+        y_pred = model(X_tensor)
+        loss = loss_fn(y_pred, y_tensor)
+        loss.backward()
+        optimizer.step()
 
-    if n % 10 == 0:
-        print(f"Epoch {n}, Loss: {loss.item():.4f}, Test Loss: {test_loss.item():.4f}")
+        if n % 10 == 0:
+            msg = f"Epoch {n}, Loss: {loss.item():.4f}"
+            if X_tensor_test is not None:
+                model.eval()
+                with torch.no_grad():
+                    y_pred_test = model(X_tensor_test)
+                    test_loss = loss_fn(y_pred_test, y_tensor_test)
+                msg += f", Test Loss: {test_loss.item():.4f}"
+            print(msg)
+
+    return model
+
+
+def save_model(model, filepath):
+    """Save model weights to disk."""
+    torch.save(model.state_dict(), filepath)
+    print(f"Model saved to {filepath}")
+
+
+if __name__ == "__main__":
+    model = BSModel()
+    device = get_device()
+
+    X_train, y_train = load_data('src/data/bs_dataset.npz')
+    X_test, y_test = load_data('src/data/bs_dataset_test.npz')
+
+    model = train_model(model, X_train, y_train, X_test, y_test, device, epochs=200)
