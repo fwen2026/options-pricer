@@ -119,6 +119,36 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
     return model, norm_params
 
 
+def predict(model, X, norm_params, K=None, device=None):
+    """
+    Run inference and return denormalized prices.
+    Use this for all validation and plot generation.
+
+    Args:
+        model: The trained model
+        X: Input features [moneyness, T, r, sigma]
+        norm_params: Normalization parameters from training
+        K: Strike prices. If provided, returns actual call price C.
+           If None, returns C/K (the normalized price the model outputs).
+        device: Torch device
+    """
+    if device is None:
+        device = get_device()
+
+    model.eval()
+    X_norm = normalize_X(X, norm_params)
+    X_tensor = torch.tensor(X_norm, dtype=torch.float32).to(device)
+
+    with torch.no_grad():
+        y_pred_norm = model(X_tensor).cpu().numpy()
+
+    y_pred = denormalize_y(y_pred_norm, norm_params).flatten()
+
+    if K is not None:
+        return y_pred * K
+    return y_pred
+
+
 def save_model(model, norm_params, filepath):
     """Save model weights and normalization params to disk."""
     torch.save({
@@ -133,7 +163,7 @@ def load_model(filepath, device=None):
     if device is None:
         device = get_device()
 
-    checkpoint = torch.load(filepath, map_location=device)
+    checkpoint = torch.load(filepath, map_location=device, weights_only=False)
     model = BSModel()
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)

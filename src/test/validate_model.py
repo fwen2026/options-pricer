@@ -8,35 +8,10 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 
-from src.models.bs_model import BSModel
 from src.pricing.black_scholes import BlackScholesOption
-from src.training.train_bs import load_data, preprocess_data, train_model, get_device
-
-
-def load_model(model_path=None, device=None):
-    """
-    Load a trained model from disk, or train a new one if no path provided.
-    """
-    if device is None:
-        device = get_device()
-
-    model = BSModel()
-    model.to(device)
-
-    if model_path and os.path.exists(model_path):
-        model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
-        print(f"Loaded model from {model_path}")
-    else:
-        print("No saved model found. Training a new model...")
-        X_train, y_train = load_data('src/data/bs_dataset.npz')
-        X_test, y_test = load_data('src/data/bs_dataset_test.npz')
-        model = train_model(model, X_train, y_train, X_test, y_test, device, epochs=200)
-
-    model.eval()
-    return model, device
+from src.training.train_bs import load_data, load_model, predict, get_device
 
 
 def compute_black_scholes_prices(X):
@@ -78,7 +53,7 @@ def compute_metrics(y_true, y_pred):
     }
 
 
-def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
+def plot_validation_results(X, y_true, y_pred, metrics, save_dir='src/test/plots'):
     """
     Generate diagnostic plots for model validation.
     """
@@ -124,7 +99,7 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_title('Error vs Time to Expiry')
 
     ax = axes[1, 2]
-    sigma = X[:, 4]
+    sigma = X[:, 3]
     ax.scatter(sigma, metrics['abs_errors'], alpha=0.3, s=1)
     ax.set_xlabel('Volatility (sigma)')
     ax.set_ylabel('Absolute Error')
@@ -193,23 +168,22 @@ def print_metrics_report(metrics):
     print("=" * 50 + "\n")
 
 
-def validate_model(model_path=None, use_test_dataset=True):
+def validate_model(model_path='src/models/bs_model.pth', use_test_dataset=True):
     """
     Main validation function.
     """
-    model, device = load_model(model_path)
+    model, norm_params = load_model(model_path)
+    print(f"Loaded model from {model_path}")
 
     if use_test_dataset:
         print("\nLoading test dataset...")
-        X_test, y_true = load_data('src/data/bs_dataset_test.npz')
+        X_test, y_true = load_data('src/data/test_dataset.npz')
     else:
         print("\nComputing Black-Scholes prices from training data...")
         X_test, _ = load_data('src/data/bs_dataset.npz')
         y_true = compute_black_scholes_prices(X_test)
 
-    X_tensor, _ = preprocess_data(X_test, y_true, device)
-    with torch.no_grad():
-        y_pred = model(X_tensor).cpu().numpy().flatten()
+    y_pred = predict(model, X_test, norm_params)
 
     metrics = compute_metrics(y_true, y_pred)
     print_metrics_report(metrics)
@@ -222,10 +196,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Validate BS model against analytical formula')
-    parser.add_argument('--model', type=str, default=None,
+    parser.add_argument('--model', type=str, default='src/models/bs_model.pth',
                         help='Path to saved model (.pth file)')
     parser.add_argument('--train-data', action='store_true',
-                        help='Use training data instead of test dataset')
+                        help='Use training data instead of eval dataset')
 
     args = parser.parse_args()
     validate_model(model_path=args.model, use_test_dataset=not args.train_data)

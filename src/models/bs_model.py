@@ -4,7 +4,7 @@ import torch.nn as nn
 class BSModel(nn.Module):
     def __init__(self):
         super(BSModel, self).__init__()
-        self.fc_1 = nn.Linear(5, 64)
+        self.fc_1 = nn.Linear(4, 64)
         self.fc_2 = nn.Linear(64, 64)
         self.fc_3 = nn.Linear(64, 1)
         self.relu = nn.ReLU()
