@@ -126,7 +126,7 @@ def predict(model, X, norm_params, K=None, device=None):
 
     Args:
         model: The trained model
-        X: Input features [moneyness, T, r, sigma]
+        X: Input features [log moneyness, T, r, sigma]
         norm_params: Normalization parameters from training
         K: Strike prices. If provided, returns actual call price C.
            If None, returns C/K (the normalized price the model outputs).

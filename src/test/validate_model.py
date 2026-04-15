@@ -14,14 +14,16 @@ from src.pricing.black_scholes import BlackScholesOption
 from src.training.train_bs import load_data, load_model, predict, get_device
 
 
-def compute_black_scholes_prices(X):
+def preprocess_test_data(X_raw):
     """
-    Compute analytical Black-Scholes call prices for input data.
-    X columns: [S, K, T, r, sigma]
+    Convert raw test data to model input format.
+    X_raw columns: [S, K, T, r, sigma]
+    Returns: X_model [log_moneyness, T, r, sigma], K
     """
-    S, K, T, r, sigma = X[:, 0], X[:, 1], X[:, 2], X[:, 3], X[:, 4]
-    option = BlackScholesOption(S, K, T, r, sigma)
-    return option.call_price()
+    S, K, T, r, sigma = X_raw[:, 0], X_raw[:, 1], X_raw[:, 2], X_raw[:, 3], X_raw[:, 4]
+    log_moneyness = np.log(S / K)
+    X_model = np.stack((log_moneyness, T, r, sigma), axis=1).astype(np.float32)
+    return X_model, K
 
 
 def compute_metrics(y_true, y_pred):
@@ -53,11 +55,19 @@ def compute_metrics(y_true, y_pred):
     }
 
 
-def plot_validation_results(X, y_true, y_pred, metrics, save_dir='src/test/plots'):
+def plot_validation_results(X, y_true, y_pred, metrics, is_raw_format=True, save_dir='src/test/plots'):
     """
     Generate diagnostic plots for model validation.
+    is_raw_format: True if X is [S, K, T, r, sigma], False if [log_moneyness, T, r, sigma]
     """
     os.makedirs(save_dir, exist_ok=True)
+
+    # Extract features based on format
+    if is_raw_format:
+        S, K, T, r, sigma = X[:, 0], X[:, 1], X[:, 2], X[:, 3], X[:, 4]
+        log_moneyness = np.log(S / K)
+    else:
+        log_moneyness, T, r, sigma = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
@@ -85,21 +95,18 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='src/test/plots
     ax.set_title(f'Relative Error Dist (Mean={metrics["mean_relative_error"]:.4f})')
 
     ax = axes[1, 0]
-    moneyness = np.log(X[:, 0] / X[:, 1])
-    ax.scatter(moneyness, metrics['abs_errors'], alpha=0.3, s=1)
-    ax.set_xlabel('Moneyness (log(S/K))')
+    ax.scatter(log_moneyness, metrics['abs_errors'], alpha=0.3, s=1)
+    ax.set_xlabel('Log Moneyness (log(S/K))')
     ax.set_ylabel('Absolute Error')
-    ax.set_title('Error vs Moneyness')
+    ax.set_title('Error vs Log Moneyness')
 
     ax = axes[1, 1]
-    T = X[:, 2]
     ax.scatter(T, metrics['abs_errors'], alpha=0.3, s=1)
     ax.set_xlabel('Time to Expiry (T)')
     ax.set_ylabel('Absolute Error')
     ax.set_title('Error vs Time to Expiry')
 
     ax = axes[1, 2]
-    sigma = X[:, 3]
     ax.scatter(sigma, metrics['abs_errors'], alpha=0.3, s=1)
     ax.set_xlabel('Volatility (sigma)')
     ax.set_ylabel('Absolute Error')
@@ -110,23 +117,20 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='src/test/plots
     plt.close()
     print(f"Saved validation plots to {save_dir}/validation_results.png")
 
-    plot_error_heatmap(X, metrics['relative_errors'], save_dir)
+    plot_error_heatmap(log_moneyness, T, metrics['relative_errors'], save_dir)
 
 
-def plot_error_heatmap(X, relative_errors, save_dir):
+def plot_error_heatmap(log_moneyness, T, relative_errors, save_dir):
     """
     Create a heatmap of relative errors binned by moneyness and time to expiry.
     """
-    moneyness = np.log(X[:, 0] / X[:, 1])
-    T = X[:, 2]
-
-    moneyness_bins = np.linspace(moneyness.min(), moneyness.max(), 20)
+    moneyness_bins = np.linspace(log_moneyness.min(), log_moneyness.max(), 20)
     T_bins = np.linspace(T.min(), T.max(), 20)
 
     heatmap = np.zeros((len(moneyness_bins) - 1, len(T_bins) - 1))
     counts = np.zeros_like(heatmap)
 
-    m_idx = np.clip(np.digitize(moneyness, moneyness_bins) - 1, 0, len(moneyness_bins) - 2)
+    m_idx = np.clip(np.digitize(log_moneyness, moneyness_bins) - 1, 0, len(moneyness_bins) - 2)
     t_idx = np.clip(np.digitize(T, T_bins) - 1, 0, len(T_bins) - 2)
 
     for i in range(len(relative_errors)):
@@ -171,23 +175,37 @@ def print_metrics_report(metrics):
 def validate_model(model_path='src/models/bs_model.pth', use_test_dataset=True):
     """
     Main validation function.
+    Tests full pipeline: raw (S, K, T, r, sigma) -> model -> C
     """
     model, norm_params = load_model(model_path)
     print(f"Loaded model from {model_path}")
 
     if use_test_dataset:
         print("\nLoading test dataset...")
-        X_test, y_true = load_data('src/data/test_dataset.npz')
+        data = np.load('src/data/test_dataset.npz')
+        X_raw = data['X']  # [S, K, T, r, sigma]
+        y_true = data['y_call']  # raw C/K
     else:
-        print("\nComputing Black-Scholes prices from training data...")
-        X_test, _ = load_data('src/data/bs_dataset.npz')
-        y_true = compute_black_scholes_prices(X_test)
+        print("\nLoading training data...")
+        data = np.load('src/data/bs_dataset.npz')
+        X_raw = data['X']  # already in model format for train
+        y_true = data['y_call']
+        # For train data, skip preprocessing and compare C/K directly
+        y_pred = predict(model, X_raw, norm_params)
+        metrics = compute_metrics(y_true, y_pred)
+        print_metrics_report(metrics)
+        plot_validation_results(X_raw, y_true, y_pred, metrics, is_raw_format=False)
+        return metrics
 
-    y_pred = predict(model, X_test, norm_params)
+    # Preprocess raw test data to model format
+    X_model, K = preprocess_test_data(X_raw)
+
+    # Predict and denormalize to get C
+    y_pred = predict(model, X_model, norm_params)
 
     metrics = compute_metrics(y_true, y_pred)
     print_metrics_report(metrics)
-    plot_validation_results(X_test, y_true, y_pred, metrics)
+    plot_validation_results(X_raw, y_true, y_pred, metrics, is_raw_format=True)
 
     return metrics
 
