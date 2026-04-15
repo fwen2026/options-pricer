@@ -34,7 +34,7 @@ def preprocess_data(X, y_call, device):
     return X_tensor, y_call_tensor
 
 
-def train_model(model, X_train, y_train, X_test=None, y_test=None,
+def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
                 device=None, epochs=200, lr=1e-3):
     """
     Train the model on provided data.
@@ -46,10 +46,10 @@ def train_model(model, X_train, y_train, X_test=None, y_test=None,
     model.to(device)
     X_tensor, y_tensor = preprocess_data(X_train, y_train, device)
 
-    if X_test is not None and y_test is not None:
-        X_tensor_test, y_tensor_test = preprocess_data(X_test, y_test, device)
+    if X_eval is not None and y_eval is not None:
+        X_tensor_eval, y_tensor_eval = preprocess_data(X_eval, y_eval, device)
     else:
-        X_tensor_test, y_tensor_test = None, None
+        X_tensor_eval, y_tensor_eval = None, None
 
     loss_fn = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -65,11 +65,11 @@ def train_model(model, X_train, y_train, X_test=None, y_test=None,
 
         if n % 10 == 0:
             msg = f"Epoch {n}, Loss: {loss.item():.4f}"
-            if X_tensor_test is not None:
+            if X_tensor_eval is not None:
                 model.eval()
                 with torch.no_grad():
-                    y_pred_test = model(X_tensor_test)
-                    test_loss = loss_fn(y_pred_test, y_tensor_test)
+                    y_pred_eval = model(X_tensor_eval)
+                    test_loss = loss_fn(y_pred_eval, y_tensor_eval)
                 msg += f", Test Loss: {test_loss.item():.4f}"
             print(msg)
 
@@ -87,6 +87,6 @@ if __name__ == "__main__":
     device = get_device()
 
     X_train, y_train = load_data('src/data/bs_dataset.npz')
-    X_test, y_test = load_data('src/data/bs_dataset_test.npz')
+    X_eval, y_eval = load_data('src/data/bs_dataset_eval.npz')
 
-    model = train_model(model, X_train, y_train, X_test, y_test, device, epochs=200)
+    model = train_model(model, X_train, y_train, X_eval, y_eval, device, epochs=200)

@@ -86,7 +86,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 
-    # 1. Predicted vs Actual scatter
     ax = axes[0, 0]
     ax.scatter(y_true, y_pred, alpha=0.3, s=1)
     max_val = max(y_true.max(), y_pred.max())
@@ -96,7 +95,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_title('Predicted vs Actual')
     ax.legend()
 
-    # 2. Error distribution histogram
     ax = axes[0, 1]
     ax.hist(metrics['errors'], bins=100, alpha=0.7, edgecolor='black')
     ax.axvline(x=0, color='r', linestyle='--')
@@ -104,7 +102,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_ylabel('Frequency')
     ax.set_title(f'Error Distribution (MAE={metrics["mae"]:.4f})')
 
-    # 3. Relative error distribution
     ax = axes[0, 2]
     rel_errors_clipped = np.clip(metrics['relative_errors'], 0, 1)
     ax.hist(rel_errors_clipped, bins=100, alpha=0.7, edgecolor='black')
@@ -112,7 +109,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_ylabel('Frequency')
     ax.set_title(f'Relative Error Dist (Mean={metrics["mean_relative_error"]:.4f})')
 
-    # 4. Error vs Moneyness
     ax = axes[1, 0]
     moneyness = np.log(X[:, 0] / X[:, 1])
     ax.scatter(moneyness, metrics['abs_errors'], alpha=0.3, s=1)
@@ -120,7 +116,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_ylabel('Absolute Error')
     ax.set_title('Error vs Moneyness')
 
-    # 5. Error vs Time to Expiry
     ax = axes[1, 1]
     T = X[:, 2]
     ax.scatter(T, metrics['abs_errors'], alpha=0.3, s=1)
@@ -128,7 +123,6 @@ def plot_validation_results(X, y_true, y_pred, metrics, save_dir='test/plots'):
     ax.set_ylabel('Absolute Error')
     ax.set_title('Error vs Time to Expiry')
 
-    # 6. Error vs Volatility
     ax = axes[1, 2]
     sigma = X[:, 4]
     ax.scatter(sigma, metrics['abs_errors'], alpha=0.3, s=1)

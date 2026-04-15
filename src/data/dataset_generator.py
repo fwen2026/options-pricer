@@ -28,24 +28,24 @@ def generate_data(n = 100000, seed = 42):
 
 def partition_data(X, y_call, y_put, test_size=0.2):
     """
-    Partitions the data into training and testing sets.
+    Partitions the data into training and eval sets.
     """
     
     n = len(X)
     indices = np.random.permutation(n)
     test_set_size = int(n * test_size)
-    test_indices = indices[:test_set_size]
+    eval_indices = indices[:test_set_size]
     train_indices = indices[test_set_size:]
-    return (X[train_indices], y_call[train_indices], y_put[train_indices]), (X[test_indices], y_call[test_indices], y_put[test_indices])
+    return (X[train_indices], y_call[train_indices], y_put[train_indices]), (X[eval_indices], y_call[eval_indices], y_put[eval_indices])
 
 def save_dataset(X, y_call, y_put, seed, 
                     train_filepath='src/data/bs_dataset.npz',
-                    test_filepath='src/data/bs_dataset_test.npz'):
+                    eval_filepath='src/data/bs_dataset_eval.npz'):
     """
-    Save the training and testing datasets to .npz files.
+    Save the training and evaluation datasets to .npz files.
     """
-    
-    (X_train, y_call_train, y_put_train), (X_test, y_call_test, y_put_test) = partition_data(X, y_call, y_put)
+
+    (X_train, y_call_train, y_put_train), (X_eval, y_call_eval, y_put_eval) = partition_data(X, y_call, y_put)
     
     if y_put is not None:
         np.savez(train_filepath,
@@ -54,24 +54,24 @@ def save_dataset(X, y_call, y_put, seed,
                     y_put=y_put_train,
                     seed=seed,
                     n=len(X_train))
-        np.savez(test_filepath,
-                    X=X_test,
-                    y_call=y_call_test,
-                    y_put=y_put_test,
+        np.savez(eval_filepath,
+                    X=X_eval,
+                    y_call=y_call_eval,
+                    y_put=y_put_eval,
                     seed=seed,
-                    n=len(X_test))
+                    n=len(X_eval))
     else:
         np.savez(train_filepath,
                     X=X_train,
                     y_call=y_call_train,
                     seed=seed,
                     n=len(X_train))
-        np.savez(test_filepath,
-                    X=X_test,
-                    y_call=y_call_test,
+        np.savez(eval_filepath,
+                    X=X_eval,
+                    y_call=y_call_eval,
                     seed=seed,
-                    n=len(X_test))
-        
+                    n=len(X_eval))
+
 
 if __name__ == "__main__":
     X, y_call, y_put = generate_data()
