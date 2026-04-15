@@ -10,11 +10,12 @@ def generate_data(n = 100000, seed = 42):
         
     # Generates the data we need.
     S = np.random.uniform(20, 140, n)  # underlying asset prices
-    K = np.random.uniform(20, 140, n)  # strike prices
+    moneyness = np.random.normal(1.0, 0.2, n)
+    K = S * moneyness
     T = np.random.uniform(0.01, 1, n)  # time to expiration
-    r = np.random.uniform(0, 0.1, n)  # risk-free interest rates
-    sigma = np.random.uniform(0.1, 0.5, n)  # volatilities
-        
+    r = np.full(n, 0.3)  # risk-free interest rates
+    sigma = np.clip(np.random.uniform(0.1, 0.5, n), 0.05, 0.6)  # volatilities
+
     option = BlackScholesOption(S, K, T, r, sigma)
 
     call_prices = option.call_price()
