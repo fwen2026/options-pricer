@@ -120,13 +120,13 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
         optimizer.step()
 
         if n % 10 == 0:
-            msg = f"Epoch {n}, Loss: {loss.item():.4f}"
+            msg = f"Epoch {n}, Loss: {loss.item():.8f}"
             if X_tensor_eval is not None:
                 model.eval()
                 with torch.no_grad():
                     y_pred_eval = model(X_tensor_eval)
                     test_loss = weighted_mse_loss(y_pred_eval, y_tensor_eval, weights_eval)
-                msg += f", Test Loss: {test_loss.item():.4f}"
+                msg += f", Test Loss: {test_loss.item():.8f}"
             print(msg)
 
     return model, norm_params
