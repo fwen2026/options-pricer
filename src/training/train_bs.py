@@ -8,8 +8,10 @@ from src.models.bs_model import BSModel
 LOG_EPSILON = 1e-8  # small constant to avoid log(0)
 
 
-def get_device():
+def get_device(use_cpu=False):
     """Get the best available device for training."""
+    if use_cpu:
+        return torch.device("cpu")
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
@@ -175,8 +177,6 @@ def set_seed(seed=42):
     """Set seeds for reproducibility."""
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.backends.mps.is_available():
-        torch.mps.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
@@ -184,8 +184,10 @@ def set_seed(seed=42):
 if __name__ == "__main__":
     set_seed(42)
 
+    # Use CPU for reproducible training
+    device = get_device(use_cpu=True)
+
     model = BSModel()
-    device = get_device()
 
     X_train, y_train = load_data('src/data/bs_dataset.npz')
     X_eval, y_eval = load_data('src/data/bs_dataset_eval.npz')
