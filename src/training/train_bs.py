@@ -76,6 +76,11 @@ def preprocess_data(X, y_call, device, params):
     return X_tensor, y_call_tensor
 
 
+def weighted_mse_loss(y_pred, y_target, weights):
+    """MSE loss weighted by 1/y to penalize relative errors equally."""
+    return torch.mean(weights * (y_pred - y_target) ** 2)
+
+
 def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
                 device=None, epochs=200, lr=1e-3):
     """
@@ -91,12 +96,18 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
     model.to(device)
     X_tensor, y_tensor = preprocess_data(X_train, y_train, device, norm_params)
 
+    # Weights: higher weight for larger y values (ITM options)
+    # Use original y values to compute weights
+    weights = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device)
+    weights = weights / weights.mean()  # normalize so mean weight = 1
+
     if X_eval is not None and y_eval is not None:
         X_tensor_eval, y_tensor_eval = preprocess_data(X_eval, y_eval, device, norm_params)
+        weights_eval = torch.tensor(y_eval, dtype=torch.float32).unsqueeze(1).to(device)
+        weights_eval = weights_eval / weights_eval.mean()
     else:
-        X_tensor_eval, y_tensor_eval = None, None
+        X_tensor_eval, y_tensor_eval, weights_eval = None, None, None
 
-    loss_fn = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     for n in range(epochs):
@@ -104,7 +115,7 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
         optimizer.zero_grad()
 
         y_pred = model(X_tensor)
-        loss = loss_fn(y_pred, y_tensor)
+        loss = weighted_mse_loss(y_pred, y_tensor, weights)
         loss.backward()
         optimizer.step()
 
@@ -114,7 +125,7 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
                 model.eval()
                 with torch.no_grad():
                     y_pred_eval = model(X_tensor_eval)
-                    test_loss = loss_fn(y_pred_eval, y_tensor_eval)
+                    test_loss = weighted_mse_loss(y_pred_eval, y_tensor_eval, weights_eval)
                 msg += f", Test Loss: {test_loss.item():.4f}"
             print(msg)
 

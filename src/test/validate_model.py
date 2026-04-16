@@ -184,7 +184,7 @@ def validate_model(model_path='src/models/bs_model.pth', use_test_dataset=True):
         print("\nLoading test dataset...")
         data = np.load('src/data/test_dataset.npz')
         X_raw = data['X']  # [S, K, T, r, sigma]
-        y_true = data['y_call']  # raw C/K
+        y_true = data['y_call']  # raw C / K
     else:
         print("\nLoading training data...")
         data = np.load('src/data/bs_dataset.npz')
