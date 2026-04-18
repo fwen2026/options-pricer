@@ -50,10 +50,11 @@ def generate_test_data(n=10000, seed=123):
     return X, y_call, y_put
 
 
-def partition_train_data(X, y_call, y_put, eval_size=0.1):
+def partition_train_data(X, y_call, y_put, eval_size=0.1, seed=42):
     """
     Partitions training data into train and eval sets.
     """
+    np.random.seed(seed)
     n = len(X)
     indices = np.random.permutation(n)
     eval_set_size = int(n * eval_size)

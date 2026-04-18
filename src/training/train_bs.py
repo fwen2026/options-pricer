@@ -96,7 +96,6 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
     model.to(device)
     X_tensor, y_tensor = preprocess_data(X_train, y_train, device, norm_params)
 
-    # Weights: higher weight for larger y values (ITM options)
     # Use original y values to compute weights
     weights = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device)
     weights = weights / weights.mean()  # normalize so mean weight = 1
