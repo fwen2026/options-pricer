@@ -76,13 +76,19 @@ def preprocess_data(X, y_call, device, params):
     return X_tensor, y_call_tensor
 
 
-def weighted_mse_loss(y_pred, y_target, weights):
-    """MSE loss weighted by 1/y to penalize relative errors equally."""
-    return torch.mean(weights * (y_pred - y_target) ** 2)
+def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
+    """
+    Hybrid loss combining Y-weighted MSE (absolute accuracy) and plain MSE (relative accuracy).
+    alpha=0: pure Y-weighted (favors expensive options)
+    alpha=1: pure MSE (favors relative accuracy)
+    """
+    weighted_mse = torch.mean(weights * (y_pred - y_target) ** 2)
+    plain_mse = torch.mean((y_pred - y_target) ** 2)
+    return (1 - alpha) * weighted_mse + alpha * plain_mse
 
 
 def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
-                device=None, epochs=200, lr=1e-3):
+                device=None, epochs=200, lr=1e-3, loss_alpha=0.5):
     """
     Train the model on provided data.
     Returns the trained model and normalization params.
@@ -96,9 +102,9 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
     model.to(device)
     X_tensor, y_tensor = preprocess_data(X_train, y_train, device, norm_params)
 
-    # Use original y values to compute weights
+    # Weights based on original y values for Y-weighted component
     weights = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device)
-    weights = weights / weights.mean()  # normalize so mean weight = 1
+    weights = weights / weights.mean()
 
     if X_eval is not None and y_eval is not None:
         X_tensor_eval, y_tensor_eval = preprocess_data(X_eval, y_eval, device, norm_params)
@@ -108,24 +114,44 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
         X_tensor_eval, y_tensor_eval, weights_eval = None, None, None
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    
+    patience = 10
+    best_eval_loss = float('inf')
+    best_model_state = None
+    patience_counter = 0
+    min_delta = 5e-4
 
     for n in range(epochs):
         model.train()
         optimizer.zero_grad()
 
         y_pred = model(X_tensor)
-        loss = weighted_mse_loss(y_pred, y_tensor, weights)
+        loss = hybrid_mse_loss(y_pred, y_tensor, weights, loss_alpha)
         loss.backward()
         optimizer.step()
+        msg = f"Epoch {n}, Training Loss: {loss.item():.8f}"
+
+        if X_tensor_eval is not None:
+            model.eval()
+            with torch.no_grad():
+                y_pred_eval = model(X_tensor_eval)
+                eval_loss = hybrid_mse_loss(y_pred_eval, y_tensor_eval, weights_eval, loss_alpha)
+                msg += f", Eval Loss: {eval_loss.item():.8f}"
+            eval_loss_item = eval_loss.item()
+            if eval_loss_item < best_eval_loss - min_delta:
+                best_eval_loss = eval_loss_item
+                best_model_state = {k: v.clone() for k, v in model.state_dict().items()}
+                patience_counter = 0
+            else:
+                patience_counter += 1
+
+            if patience_counter >= patience:
+                print(f"Early stopping at epoch {n}")
+                if best_model_state is not None:
+                    model.load_state_dict(best_model_state)
+                break
 
         if n % 10 == 0:
-            msg = f"Epoch {n}, Loss: {loss.item():.8f}"
-            if X_tensor_eval is not None:
-                model.eval()
-                with torch.no_grad():
-                    y_pred_eval = model(X_tensor_eval)
-                    test_loss = weighted_mse_loss(y_pred_eval, y_tensor_eval, weights_eval)
-                msg += f", Test Loss: {test_loss.item():.8f}"
             print(msg)
 
     return model, norm_params
