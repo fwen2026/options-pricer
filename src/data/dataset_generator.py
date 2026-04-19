@@ -1,8 +1,14 @@
 import numpy as np
 from src.pricing.black_scholes import BlackScholesOption
+from src.config import (
+    DATA_TRAIN_SIZE, DATA_TEST_SIZE, DATA_EVAL_FRACTION,
+    S_RANGE, LOG_MONEYNESS_RANGE, T_RANGE, R_DEFAULT, SIGMA_RANGE, SIGMA_CLIP,
+    TRAIN_DATA_PATH, EVAL_DATA_PATH, TEST_DATA_PATH,
+    TRAIN_DATA_SEED, TEST_DATA_SEED
+)
 
 
-def generate_train_data(n=100000, seed=42):
+def generate_train_data(n=DATA_TRAIN_SIZE, seed=TRAIN_DATA_SEED):
     """
     Generate training/eval data in model format.
     X: [log_moneyness, T, r, sigma]
@@ -10,12 +16,12 @@ def generate_train_data(n=100000, seed=42):
     """
     np.random.seed(seed)
 
-    S = np.random.uniform(20, 140, n)
-    log_moneyness = np.random.uniform(-2, 2, n)
+    S = np.random.uniform(*S_RANGE, n)
+    log_moneyness = np.random.uniform(*LOG_MONEYNESS_RANGE, n)
     K = S / np.exp(log_moneyness)
-    T = np.exp(np.random.uniform(np.log(0.01), np.log(2.0), n))
-    r = np.full(n, 0.3)
-    sigma = np.clip(np.random.uniform(0.1, 0.5, n), 0.05, 0.6)
+    T = np.exp(np.random.uniform(np.log(T_RANGE[0]), np.log(T_RANGE[1]), n))
+    r = np.full(n, R_DEFAULT)
+    sigma = np.clip(np.random.uniform(*SIGMA_RANGE, n), *SIGMA_CLIP)
 
     option = BlackScholesOption(S, K, T, r, sigma)
     call_prices = option.call_price() / K
@@ -27,7 +33,7 @@ def generate_train_data(n=100000, seed=42):
     return X, y_call, y_put
 
 
-def generate_test_data(n=10000, seed=123):
+def generate_test_data(n=DATA_TEST_SIZE, seed=TEST_DATA_SEED):
     """
     Generate test data in raw format for full pipeline testing.
     X: [S, K, T, r, sigma]
@@ -35,12 +41,12 @@ def generate_test_data(n=10000, seed=123):
     """
     np.random.seed(seed)
 
-    S = np.random.uniform(20, 140, n).astype(np.float32)
-    log_moneyness = np.random.uniform(-2, 2, n)
+    S = np.random.uniform(*S_RANGE, n).astype(np.float32)
+    log_moneyness = np.random.uniform(*LOG_MONEYNESS_RANGE, n)
     K = (S / np.exp(log_moneyness)).astype(np.float32)
-    T = np.exp(np.random.uniform(np.log(0.01), np.log(2.0), n)).astype(np.float32)
-    r = np.full(n, 0.3, dtype=np.float32)
-    sigma = np.clip(np.random.uniform(0.1, 0.5, n), 0.05, 0.6).astype(np.float32)
+    T = np.exp(np.random.uniform(np.log(T_RANGE[0]), np.log(T_RANGE[1]), n)).astype(np.float32)
+    r = np.full(n, R_DEFAULT, dtype=np.float32)
+    sigma = np.clip(np.random.uniform(*SIGMA_RANGE, n), *SIGMA_CLIP).astype(np.float32)
 
     option = BlackScholesOption(S, K, T, r, sigma)
     y_call = option.call_price().astype(np.float32) / K
@@ -50,7 +56,7 @@ def generate_test_data(n=10000, seed=123):
     return X, y_call, y_put
 
 
-def partition_train_data(X, y_call, y_put, eval_size=0.1, seed=42):
+def partition_train_data(X, y_call, y_put, eval_size=DATA_EVAL_FRACTION, seed=TRAIN_DATA_SEED):
     """
     Partitions training data into train and eval sets.
     """
@@ -66,9 +72,9 @@ def partition_train_data(X, y_call, y_put, eval_size=0.1, seed=42):
     )
 
 
-def save_datasets(train_filepath='src/data/bs_dataset.npz',
-                  eval_filepath='src/data/bs_dataset_eval.npz',
-                  test_filepath='src/data/test_dataset.npz'):
+def save_datasets(train_filepath=TRAIN_DATA_PATH,
+                  eval_filepath=EVAL_DATA_PATH,
+                  test_filepath=TEST_DATA_PATH):
     """
     Generate and save all datasets.
     """

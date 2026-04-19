@@ -1,11 +1,13 @@
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 from src.models.bs_model import BSModel
-
-LOG_EPSILON = 1e-8  # small constant to avoid log(0)
+from src.config import (
+    LOG_EPSILON, TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
+    TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, MODEL_PATH,
+    TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED
+)
 
 
 def get_device(use_cpu=False):
@@ -88,7 +90,7 @@ def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
 
 
 def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
-                device=None, epochs=200, lr=1e-3, loss_alpha=0.5):
+                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, loss_alpha=TRAIN_LOSS_ALPHA):
     """
     Train the model on provided data.
     Returns the trained model and normalization params.
@@ -115,11 +117,11 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
     
-    patience = 10
+    patience = TRAIN_PATIENCE
     best_eval_loss = float('inf')
     best_model_state = None
     patience_counter = 0
-    min_delta = 5e-4
+    min_delta = TRAIN_MIN_DELTA
 
     for n in range(epochs):
         model.train()
@@ -218,16 +220,16 @@ def set_seed(seed=42):
 
 
 if __name__ == "__main__":
-    set_seed(42)
+    set_seed(TRAINING_SEED)
 
     # Use CPU for reproducible training
     device = get_device(use_cpu=True)
 
     model = BSModel()
 
-    X_train, y_train = load_data('src/data/bs_dataset.npz')
-    X_eval, y_eval = load_data('src/data/bs_dataset_eval.npz')
+    X_train, y_train = load_data(TRAIN_DATA_PATH)
+    X_eval, y_eval = load_data(EVAL_DATA_PATH)
 
-    model, norm_params = train_model(model, X_train, y_train, X_eval, y_eval, device, epochs=200)
+    model, norm_params = train_model(model, X_train, y_train, X_eval, y_eval, device)
 
-    save_model(model, norm_params, 'src/models/bs_model.pth')
+    save_model(model, norm_params, MODEL_PATH)

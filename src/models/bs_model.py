@@ -1,18 +1,17 @@
 import torch.nn as nn
+from src.config import MODEL_LAYERS
 
 
 class BSModel(nn.Module):
-    def __init__(self):
+    def __init__(self, layers=MODEL_LAYERS):
         super(BSModel, self).__init__()
-        self.fc_1 = nn.Linear(4, 128)
-        self.fc_2 = nn.Linear(128, 128)
-        self.fc_3 = nn.Linear(128, 64)
-        self.fc_4 = nn.Linear(64, 1)
+        self.layers = nn.ModuleList()
+        for i in range(len(layers) - 1):
+            self.layers.append(nn.Linear(layers[i], layers[i + 1]))
         self.relu = nn.ReLU()
 
     def forward(self, x):
-        x = self.relu(self.fc_1(x))
-        x = self.relu(self.fc_2(x))
-        x = self.relu(self.fc_3(x))
-        x = self.fc_4(x)
+        for layer in self.layers[:-1]:
+            x = self.relu(layer(x))
+        x = self.layers[-1](x)
         return x

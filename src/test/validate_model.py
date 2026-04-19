@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 from src.pricing.black_scholes import BlackScholesOption
 from src.training.train_bs import load_data, load_model, predict, get_device
+from src.config import LOG_EPSILON, MODEL_PATH, TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR
 
 
 def preprocess_test_data(X_raw):
@@ -35,8 +36,7 @@ def compute_metrics(y_true, y_pred):
 
     mae = np.mean(abs_errors)
 
-    epsilon = 1e-8
-    relative_errors = abs_errors / (np.abs(y_true) + epsilon)
+    relative_errors = abs_errors / (np.abs(y_true) + LOG_EPSILON)
     mean_relative_error = np.mean(relative_errors)
     median_relative_error = np.median(relative_errors)
 
@@ -55,7 +55,7 @@ def compute_metrics(y_true, y_pred):
     }
 
 
-def plot_validation_results(X, y_true, y_pred, metrics, is_raw_format=True, save_dir='src/test/plots'):
+def plot_validation_results(X, y_true, y_pred, metrics, is_raw_format=True, save_dir=PLOTS_DIR):
     """
     Generate diagnostic plots for model validation.
     is_raw_format: True if X is [S, K, T, r, sigma], False if [log_moneyness, T, r, sigma]
@@ -172,7 +172,7 @@ def print_metrics_report(metrics):
     print("=" * 50 + "\n")
 
 
-def validate_model(model_path='src/models/bs_model.pth', use_test_dataset=True):
+def validate_model(model_path=MODEL_PATH, use_test_dataset=True):
     """
     Main validation function.
     Tests full pipeline: raw (S, K, T, r, sigma) -> model -> C
@@ -182,12 +182,12 @@ def validate_model(model_path='src/models/bs_model.pth', use_test_dataset=True):
 
     if use_test_dataset:
         print("\nLoading test dataset...")
-        data = np.load('src/data/test_dataset.npz')
+        data = np.load(TEST_DATA_PATH)
         X_raw = data['X']  # [S, K, T, r, sigma]
         y_true = data['y_call']  # raw C / K
     else:
         print("\nLoading training data...")
-        data = np.load('src/data/bs_dataset.npz')
+        data = np.load(TRAIN_DATA_PATH)
         X_raw = data['X']  # already in model format for train
         y_true = data['y_call']
         # For train data, skip preprocessing and compare C/K directly
@@ -214,7 +214,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Validate BS model against analytical formula')
-    parser.add_argument('--model', type=str, default='src/models/bs_model.pth',
+    parser.add_argument('--model', type=str, default=MODEL_PATH,
                         help='Path to saved model (.pth file)')
     parser.add_argument('--train-data', action='store_true',
                         help='Use training data instead of eval dataset')
