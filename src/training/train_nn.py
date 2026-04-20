@@ -6,7 +6,7 @@ from src.models.bs_model import BSModel
 from src.training.preprocess_data import (
     load_data, compute_normalization_params, normalize_X, normalize_y, denormalize_y
 )
-from src.config import (
+from constants import (
     TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
     TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, MODEL_PATH,
     TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED

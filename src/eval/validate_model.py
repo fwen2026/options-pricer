@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from src.pricing.black_scholes import BlackScholesOption
 from src.training.train_nn import load_model, predict, get_device
 from src.training.preprocess_data import load_data
-from src.config import LOG_EPSILON, MODEL_PATH, TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR
+from constants import LOG_EPSILON, MODEL_PATH, TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR
 
 
 def preprocess_test_data(X_raw):

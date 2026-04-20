@@ -28,11 +28,11 @@ TRAIN_MIN_DELTA = 5e-4
 TRAIN_LOSS_ALPHA = 0.5  # 0=Y-weighted, 1=plain MSE
 
 # Paths
-MODEL_PATH = 'src/models/bs_model.pth'
-TRAIN_DATA_PATH = 'src/data/bs_dataset.npz'
-EVAL_DATA_PATH = 'src/data/bs_dataset_eval.npz'
-TEST_DATA_PATH = 'src/data/test_dataset.npz'
-PLOTS_DIR = 'src/test/plots'
+MODEL_PATH = "artifacts/models/bs_model.pth"
+TRAIN_DATA_PATH = "artifacts/data/bs_dataset.npz"
+EVAL_DATA_PATH = "artifacts/data/bs_dataset_eval.npz"
+TEST_DATA_PATH = "artifacts/data/test_dataset.npz"
+PLOTS_DIR = "artifacts/plots"
 
 # Seeds
 TRAIN_DATA_SEED = 42
