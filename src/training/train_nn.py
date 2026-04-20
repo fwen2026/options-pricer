@@ -3,8 +3,11 @@ import torch
 import torch.optim as optim
 
 from src.models.bs_model import BSModel
+from src.training.preprocess_data import (
+    load_data, compute_normalization_params, normalize_X, normalize_y, denormalize_y
+)
 from src.config import (
-    LOG_EPSILON, TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
+    TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
     TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, MODEL_PATH,
     TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED
 )
@@ -17,61 +20,14 @@ def get_device(use_cpu=False):
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
-def load_data(filepath):
+def convert_to_tensor(X_norm, y_norm, device):
     """
-    Load the dataset from a .npz file.
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: The input features and target labels.
-    """
-    data = np.load(filepath)
-    X = data['X']
-    y_call = data['y_call']
-    return X, y_call
-
-
-def compute_normalization_params(X, y):
-    """Compute mean and std for inputs and targets."""
-    X_mean = X.mean(axis=0)
-    X_std = X.std(axis=0)
-    X_std[X_std < 1e-8] = 1.0  # avoid division by zero for constant features (like r)
-
-    y_log = np.log(y + LOG_EPSILON)
-    y_mean = y_log.mean()
-    y_std = y_log.std()
-
-    return {
-        'X_mean': X_mean,
-        'X_std': X_std,
-        'y_mean': y_mean,
-        'y_std': y_std
-    }
-
-
-def normalize_X(X, params):
-    """Standardize input features."""
-    return (X - params['X_mean']) / params['X_std']
-
-
-def normalize_y(y, params):
-    """Apply log transform and standardize targets."""
-    y_log = np.log(y + LOG_EPSILON)
-    return (y_log - params['y_mean']) / params['y_std']
-
-
-def denormalize_y(y_norm, params):
-    """Reverse the normalization to get actual prices."""
-    y_log = y_norm * params['y_std'] + params['y_mean']
-    return np.exp(y_log) - LOG_EPSILON
-
-
-def preprocess_data(X, y_call, device, params):
-    """
-    Preprocess the input data and labels with normalization.
+    Converts preprocessed data as a tensor for training.
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: The preprocessed input and target tensors.
     """
-    X_norm = normalize_X(X, params)
-    y_norm = normalize_y(y_call, params)
+    # X_norm = normalize_X(X, params)
+    # y_norm = normalize_y(y_call, params)
 
     X_tensor = torch.tensor(X_norm, dtype=torch.float32).to(device)
     y_call_tensor = torch.tensor(y_norm, dtype=torch.float32).unsqueeze(1).to(device)
@@ -90,27 +46,27 @@ def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
 
 
 def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
-                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, loss_alpha=TRAIN_LOSS_ALPHA):
+                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, loss_alpha=TRAIN_LOSS_ALPHA,
+                y_train_raw=None, y_eval_raw=None):
     """
-    Train the model on provided data.
-    Returns the trained model and normalization params.
+    Train the model on provided data. This data should be preprocessed already.
+    y_train_raw/y_eval_raw: original unnormalized y values for computing loss weights.
     """
     if device is None:
         device = get_device()
 
-    # Compute normalization params from training data only
-    norm_params = compute_normalization_params(X_train, y_train)
-
     model.to(device)
-    X_tensor, y_tensor = preprocess_data(X_train, y_train, device, norm_params)
+    X_tensor, y_tensor = convert_to_tensor(X_train, y_train, device)
 
     # Weights based on original y values for Y-weighted component
-    weights = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(device)
+    y_for_weights = y_train_raw if y_train_raw is not None else y_train
+    weights = torch.tensor(y_for_weights, dtype=torch.float32).unsqueeze(1).to(device)
     weights = weights / weights.mean()
 
     if X_eval is not None and y_eval is not None:
-        X_tensor_eval, y_tensor_eval = preprocess_data(X_eval, y_eval, device, norm_params)
-        weights_eval = torch.tensor(y_eval, dtype=torch.float32).unsqueeze(1).to(device)
+        X_tensor_eval, y_tensor_eval = convert_to_tensor(X_eval, y_eval, device)
+        y_eval_for_weights = y_eval_raw if y_eval_raw is not None else y_eval
+        weights_eval = torch.tensor(y_eval_for_weights, dtype=torch.float32).unsqueeze(1).to(device)
         weights_eval = weights_eval / weights_eval.mean()
     else:
         X_tensor_eval, y_tensor_eval, weights_eval = None, None, None
@@ -156,7 +112,7 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
         if n % 10 == 0:
             print(msg)
 
-    return model, norm_params
+    return model
 
 
 def predict(model, X, norm_params, K=None, device=None):
@@ -221,15 +177,20 @@ def set_seed(seed=42):
 
 if __name__ == "__main__":
     set_seed(TRAINING_SEED)
-
+    
     # Use CPU for reproducible training
     device = get_device(use_cpu=True)
 
     model = BSModel()
 
+    # Preprocess
     X_train, y_train = load_data(TRAIN_DATA_PATH)
     X_eval, y_eval = load_data(EVAL_DATA_PATH)
+    norm_params = compute_normalization_params(X_train, y_train)
 
-    model, norm_params = train_model(model, X_train, y_train, X_eval, y_eval, device)
+    X_norm, y_norm = normalize_X(X_train, norm_params), normalize_y(y_train, norm_params)
+    X_eval_norm, y_eval_norm = normalize_X(X_eval, norm_params), normalize_y(y_eval, norm_params)
+    model = train_model(model, X_norm, y_norm, X_eval_norm, y_eval_norm, device,
+                        y_train_raw=y_train, y_eval_raw=y_eval)
 
     save_model(model, norm_params, MODEL_PATH)
