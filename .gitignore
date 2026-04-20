@@ -9,7 +9,3 @@ __pycache__/
 
 # artifacts
 artifacts/
-*.npz
-*.pth
-*.png
-*.log
