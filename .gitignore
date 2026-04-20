@@ -1,3 +1,15 @@
 .DS_Store
+
+# python stuff
 __pycache__/
+*.pyc 
+
+# venv
 .venv/
+
+# artifacts
+# artifacts/
+# *.npz
+# *.pth
+# *.png
+# *.log

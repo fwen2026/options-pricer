@@ -1,5 +1,5 @@
 import numpy as np
-from constants import LOG_EPSILON
+from src.constants import LOG_EPSILON
 
 
 def load_data(filepath):

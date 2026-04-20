@@ -1,5 +1,5 @@
 import torch.nn as nn
-from constants import MODEL_LAYERS
+from src.constants import MODEL_LAYERS
 
 
 class BSModel(nn.Module):
