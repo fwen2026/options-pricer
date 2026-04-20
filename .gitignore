@@ -8,8 +8,8 @@ __pycache__/
 .venv/
 
 # artifacts
-# artifacts/
-# *.npz
-# *.pth
-# *.png
-# *.log
+artifacts/
+*.npz
+*.pth
+*.png
+*.log
