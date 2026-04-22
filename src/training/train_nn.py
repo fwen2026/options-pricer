@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import torch
 import torch.optim as optim
@@ -46,8 +47,8 @@ def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
 
 
 def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
-                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, loss_alpha=TRAIN_LOSS_ALPHA,
-                y_train_raw=None, y_eval_raw=None):
+                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, patience=TRAIN_PATIENCE,
+                loss_alpha=TRAIN_LOSS_ALPHA, y_train_raw=None, y_eval_raw=None):
     """
     Train the model on provided data. This data should be preprocessed already.
     y_train_raw/y_eval_raw: original unnormalized y values for computing loss weights.
@@ -72,8 +73,7 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
         X_tensor_eval, y_tensor_eval, weights_eval = None, None, None
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    
-    patience = TRAIN_PATIENCE
+
     best_eval_loss = float('inf')
     best_model_state = None
     patience_counter = 0
@@ -176,8 +176,14 @@ def set_seed(seed=42):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train neural network model")
+    parser.add_argument("--epochs", type=int, default=TRAIN_EPOCHS, help="Number of training epochs")
+    parser.add_argument("--patience", type=int, default=TRAIN_PATIENCE, help="Early stopping patience")
+    parser.add_argument("--lr", type=float, default=TRAIN_LR, help="Learning rate")
+    args = parser.parse_args()
+
     set_seed(TRAINING_SEED)
-    
+
     # Use CPU for reproducible training
     device = get_device(use_cpu=True)
 
@@ -191,6 +197,7 @@ if __name__ == "__main__":
     X_norm, y_norm = normalize_X(X_train, norm_params), normalize_y(y_train, norm_params)
     X_eval_norm, y_eval_norm = normalize_X(X_eval, norm_params), normalize_y(y_eval, norm_params)
     model = train_model(model, X_norm, y_norm, X_eval_norm, y_eval_norm, device,
+                        epochs=args.epochs, lr=args.lr, patience=args.patience,
                         y_train_raw=y_train, y_eval_raw=y_eval)
 
     save_model(model, norm_params, MODEL_PATH)
