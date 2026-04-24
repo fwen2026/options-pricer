@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 from src.training.train_nn import load_model, predict, get_device
 from src.training.preprocess_data import load_data
-from constants import LOG_EPSILON, MODEL_PATH, TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR
+from src.constants import LOG_EPSILON, NN_MODEL_PATH, TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR
 
 
 def preprocess_test_data(X_raw):
@@ -27,21 +27,24 @@ def preprocess_test_data(X_raw):
     return X_model, K
 
 
-def compute_metrics(y_true, y_pred):
+def compute_metrics(y_true, y_pred, min_value_threshold=0.01):
     """
     Compute MAE and relative error metrics.
+    Relative errors exclude near-zero values (illiquid options).
     """
     errors = y_pred - y_true
     abs_errors = np.abs(errors)
 
     mae = np.mean(abs_errors)
-
-    relative_errors = abs_errors / (np.abs(y_true) + LOG_EPSILON)
-    mean_relative_error = np.mean(relative_errors)
-    median_relative_error = np.median(relative_errors)
-
     rmse = np.sqrt(np.mean(errors ** 2))
     max_error = np.max(abs_errors)
+
+    # Exclude near-zero values from relative error (not tradeable)
+    mask = np.abs(y_true) >= min_value_threshold
+    relative_errors = np.zeros_like(abs_errors)
+    relative_errors[mask] = abs_errors[mask] / np.abs(y_true[mask])
+    mean_relative_error = np.mean(relative_errors[mask]) if mask.any() else 0.0
+    median_relative_error = np.median(relative_errors[mask]) if mask.any() else 0.0
 
     return {
         'mae': mae,
@@ -172,7 +175,7 @@ def print_metrics_report(metrics):
     print("=" * 50 + "\n")
 
 
-def validate_model(model_path=MODEL_PATH, use_test_dataset=True):
+def validate_model(model_path=NN_MODEL_PATH, use_test_dataset=True):
     """
     Main validation function.
     Tests full pipeline: raw (S, K, T, r, sigma) -> model -> C
@@ -214,7 +217,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Validate BS model against analytical formula')
-    parser.add_argument('--model', type=str, default=MODEL_PATH,
+    parser.add_argument('--model', type=str, default=NN_MODEL_PATH,
                         help='Path to saved model (.pth file)')
     parser.add_argument('--train-data', action='store_true',
                         help='Use training data instead of eval dataset')

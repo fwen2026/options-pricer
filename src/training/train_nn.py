@@ -9,7 +9,7 @@ from src.training.preprocess_data import (
 )
 from src.constants import (
     TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
-    TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, MODEL_PATH,
+    TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, NN_MODEL_PATH,
     TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED
 )
 
@@ -200,4 +200,4 @@ if __name__ == "__main__":
                         epochs=args.epochs, lr=args.lr, patience=args.patience,
                         y_train_raw=y_train, y_eval_raw=y_eval)
 
-    save_model(model, norm_params, MODEL_PATH)
+    save_model(model, norm_params, NN_MODEL_PATH)
