@@ -1,7 +1,7 @@
 import joblib
 import xgboost as xgb
 
-from src.training.preprocess_data import compute_normalization_params, load_data, normalize_y
+from src.training.preprocess_data import compute_normalization_params, load_data, normalize_y, denormalize_y
 from src.constants import EVAL_DATA_PATH, TRAIN_DATA_PATH, XGBOOST_MODEL_PATH
 
 def train_model(model, X_train, y_train, X_eval, y_eval):
@@ -10,9 +10,29 @@ def train_model(model, X_train, y_train, X_eval, y_eval):
               eval_set=[(X_eval, y_eval)],
               verbose=50
               )
+    
 
-def predict(model, X):
-    return model.predict(X)
+def predict(model, X, norm_params):
+    """
+    Make predictions using the trained XGBoost model.
+    """
+    y_raw = model.predict(X)
+    return denormalize_y(y_raw, norm_params)
+
+
+def _norm_params_path(model_path):
+    return model_path.replace(".ubj", "_norm_params.joblib")
+
+
+def load_model(model_path):
+    """
+    Load the XGBoost model and its sidecar normalization parameters.
+    """
+    model = xgb.XGBRegressor()
+    model.load_model(model_path)
+    norm_params = joblib.load(_norm_params_path(model_path))
+    return model, norm_params
+
 
 if __name__ == "__main__":
     # Load and preprocess data
@@ -39,4 +59,4 @@ if __name__ == "__main__":
 
     # Save model
     model.save_model(XGBOOST_MODEL_PATH)
-    joblib.dump(norm_params, XGBOOST_MODEL_PATH.replace(".ubj", "_norm_params.joblib"))
+    joblib.dump(norm_params, _norm_params_path(XGBOOST_MODEL_PATH)) 

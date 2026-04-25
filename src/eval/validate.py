@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from src.constants import (
-    NN_MODEL_PATH, ELASTIC_MODEL_PATH,
+    NN_MODEL_PATH, ELASTIC_MODEL_PATH, XGBOOST_MODEL_PATH,
     TRAIN_DATA_PATH, TEST_DATA_PATH, PLOTS_DIR,
 )
 
@@ -177,13 +177,19 @@ def print_metrics_report(metrics, display_name):
 def _load_and_predict_nn(model_path):
     from src.training.train_nn import load_model, predict
     model, norm_params = load_model(model_path)
-    return lambda X: predict(model, X, norm_params), norm_params
+    return lambda X: predict(model, X, norm_params)
 
 
 def _load_and_predict_linear(model_path):
     from src.training.train_linear import load_model, predict
     model, norm_params = load_model(model_path)
-    return lambda X: predict(model, X, norm_params), norm_params
+    return lambda X: predict(model, X, norm_params)
+
+
+def _load_and_predict_xgboost(model_path):
+    from src.training.train_xgboost import load_model, predict
+    model, norm_params = load_model(model_path)
+    return lambda X: predict(model, X, norm_params)
 
 
 MODEL_CONFIGS = {
@@ -197,19 +203,24 @@ MODEL_CONFIGS = {
         'loader': _load_and_predict_linear,
         'style': {'color': 'orange', 'cmap': 'PuBu', 'suffix': '_linear', 'display_name': 'Linear'},
     },
+    'xgboost': {
+        'default_path': XGBOOST_MODEL_PATH,
+        'loader': _load_and_predict_xgboost,
+        'style': {'color': 'tab:green', 'cmap': 'YlGn', 'suffix': '_xgboost', 'display_name': 'XGBoost'},
+    }
 }
 
 
 def validate_model(model_type='nn', model_path=None, use_test_dataset=True):
     """
     Main validation function.
-    Tests full pipeline: raw (S, K, T, r, sigma) -> model -> C
+    Tests full pipeline: raw (S, K, T, r, sigma) --> preprocess --> model --> C
     """
     config = MODEL_CONFIGS[model_type]
     model_path = model_path or config['default_path']
     style = config['style']
 
-    predict_fn, _ = config['loader'](model_path)
+    predict_fn = config['loader'](model_path)
     print(f"Loaded {style['display_name']} model from {model_path}")
 
     if use_test_dataset:
