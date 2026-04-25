@@ -34,6 +34,7 @@ TRAIN_LOSS_ALPHA = 0.5  # weights both rel and abs equally
 # ---- Directories ----
 NN_MODEL_PATH = "artifacts/models/bs_model.pth"
 ELASTIC_MODEL_PATH = "artifacts/models/elastic_model.joblib"
+XGBOOST_MODEL_PATH = "artifacts/models/xgboost_model.ubj"
 TRAIN_DATA_PATH = "artifacts/data/bs_dataset.npz"
 EVAL_DATA_PATH = "artifacts/data/bs_dataset_eval.npz"
 TEST_DATA_PATH = "artifacts/data/test_dataset.npz"

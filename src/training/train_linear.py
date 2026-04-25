@@ -2,7 +2,7 @@ import numpy as np
 import joblib
 from sklearn.linear_model import ElasticNet
 from sklearn.model_selection import GridSearchCV, KFold
-from src.training.preprocess_data import load_data, compute_normalization_params, normalize_X, normalize_y
+from src.training.preprocess_data import load_data, compute_normalization_params, normalize_X, normalize_y, denormalize_y
 from src.constants import ELASTIC_MODEL_PATH, TRAIN_DATA_PATH
 
 
@@ -40,11 +40,21 @@ def train_model(X_train, y_train):
     return grid.best_estimator_
 
 
-def predict(model, X_test):
+def predict(model, X_raw, norm_params, clip_range=(-2, 1.1)):
     """
     Prediction script for a sklearn model
     """
-    return model.predict(X_test)
+    X_engineered = engineer_features(X_raw)
+    X_norm = normalize_X(X_engineered, norm_params)
+    y = model.predict(X_norm)
+    y = np.clip(y, clip_range[0], clip_range[1])
+    return denormalize_y(y, norm_params).flatten()
+
+
+def load_model(filepath):
+    """Load model and normalization params from disk."""
+    checkpoint = joblib.load(filepath)
+    return checkpoint['model'], checkpoint['norm_params']
 
 
 if __name__ == "__main__":
