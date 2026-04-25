@@ -211,9 +211,41 @@ MODEL_CONFIGS = {
 }
 
 
+DEFAULT_STYLE = {'color': 'tab:gray', 'cmap': 'Greys', 'suffix': '', 'display_name': 'Model'}
+
+
+def validate_predict_fn(predict_fn, X, y_true, style=None, is_raw_format=True,
+                        save_plots=True, save_dir=PLOTS_DIR, display_name=None,
+                        report=True):
+    """
+    Validate any predict_fn against arbitrary (X, y_true) arrays.
+    predict_fn takes model-format X [log_m, T, r, sigma] and returns C/K.
+
+    X can be either raw [S, K, T, r, sigma] (is_raw_format=True) or model format.
+    Returns metrics dict.
+    """
+    style = {**DEFAULT_STYLE, **(style or {})}
+    if display_name is not None:
+        style = {**style, 'display_name': display_name}
+
+    if is_raw_format:
+        X_model, _ = preprocess_test_data(X)
+        y_pred = predict_fn(X_model)
+    else:
+        y_pred = predict_fn(X)
+
+    metrics = compute_metrics(y_true, y_pred)
+    if report:
+        print_metrics_report(metrics, style['display_name'])
+    if save_plots:
+        plot_validation_results(X, y_true, y_pred, metrics, style,
+                                is_raw_format=is_raw_format, save_dir=save_dir)
+    return metrics
+
+
 def validate_model(model_type='nn', model_path=None, use_test_dataset=True):
     """
-    Main validation function.
+    File-based validation entry point. Loads model + dataset from disk.
     Tests full pipeline: raw (S, K, T, r, sigma) --> preprocess --> model --> C
     """
     config = MODEL_CONFIGS[model_type]
@@ -226,24 +258,17 @@ def validate_model(model_type='nn', model_path=None, use_test_dataset=True):
     if use_test_dataset:
         print("\nLoading test dataset...")
         data = np.load(TEST_DATA_PATH)
-        X_raw = data['X']  # [S, K, T, r, sigma]
+        X = data['X']
         y_true = data['y_call']
-        X_model, _ = preprocess_test_data(X_raw)
-        y_pred = predict_fn(X_model)
-        metrics = compute_metrics(y_true, y_pred)
-        print_metrics_report(metrics, style['display_name'])
-        plot_validation_results(X_raw, y_true, y_pred, metrics, style, is_raw_format=True)
+        is_raw = True
     else:
         print("\nLoading training data...")
         data = np.load(TRAIN_DATA_PATH)
-        X_raw = data['X']  # already in model format
+        X = data['X']
         y_true = data['y_call']
-        y_pred = predict_fn(X_raw)
-        metrics = compute_metrics(y_true, y_pred)
-        print_metrics_report(metrics, style['display_name'])
-        plot_validation_results(X_raw, y_true, y_pred, metrics, style, is_raw_format=False)
+        is_raw = False
 
-    return metrics
+    return validate_predict_fn(predict_fn, X, y_true, style=style, is_raw_format=is_raw)
 
 
 if __name__ == "__main__":

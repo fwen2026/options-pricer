@@ -5,39 +5,38 @@ import torch.optim as optim
 
 from src.models.bs_model import BSModel
 from src.training.preprocess_data import (
-    load_data, compute_normalization_params, normalize_X, normalize_y, denormalize_y
+    load_data, compute_normalization_params, normalize_X, normalize_y, denormalize_y,
 )
 from src.constants import (
     TRAIN_EPOCHS, TRAIN_LR, TRAIN_PATIENCE,
     TRAIN_MIN_DELTA, TRAIN_LOSS_ALPHA, NN_MODEL_PATH,
-    TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED
+    TRAIN_DATA_PATH, EVAL_DATA_PATH, TRAINING_SEED,
 )
 
 
+DEFAULT_HYPERPARAMS = {
+    "epochs": TRAIN_EPOCHS,
+    "lr": TRAIN_LR,
+    "patience": TRAIN_PATIENCE,
+    "min_delta": TRAIN_MIN_DELTA,
+    "loss_alpha": TRAIN_LOSS_ALPHA,
+}
+
+
 def get_device(use_cpu=False):
-    """Get the best available device for training."""
     if use_cpu:
         return torch.device("cpu")
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
 def convert_to_tensor(X_norm, y_norm, device):
-    """
-    Converts preprocessed data as a tensor for training.
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]: The preprocessed input and target tensors.
-    """
-    # X_norm = normalize_X(X, params)
-    # y_norm = normalize_y(y_call, params)
-
     X_tensor = torch.tensor(X_norm, dtype=torch.float32).to(device)
-    y_call_tensor = torch.tensor(y_norm, dtype=torch.float32).unsqueeze(1).to(device)
-    return X_tensor, y_call_tensor
+    y_tensor = torch.tensor(y_norm, dtype=torch.float32).unsqueeze(1).to(device)
+    return X_tensor, y_tensor
 
 
 def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
     """
-    Hybrid loss combining Y-weighted MSE (absolute accuracy) and plain MSE (relative accuracy).
     alpha=0: pure Y-weighted (favors expensive options)
     alpha=1: pure MSE (favors relative accuracy)
     """
@@ -46,20 +45,19 @@ def hybrid_mse_loss(y_pred, y_target, weights, alpha=0.5):
     return (1 - alpha) * weighted_mse + alpha * plain_mse
 
 
-def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
-                device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, patience=TRAIN_PATIENCE,
-                loss_alpha=TRAIN_LOSS_ALPHA, y_train_raw=None, y_eval_raw=None):
+def fit(model, X_train, y_train, X_eval=None, y_eval=None,
+        device=None, epochs=TRAIN_EPOCHS, lr=TRAIN_LR, patience=TRAIN_PATIENCE,
+        min_delta=TRAIN_MIN_DELTA, loss_alpha=TRAIN_LOSS_ALPHA,
+        y_train_raw=None, y_eval_raw=None, log_every=10):
     """
-    Train the model on provided data. This data should be preprocessed already.
-    y_train_raw/y_eval_raw: original unnormalized y values for computing loss weights.
+    Fit model on normalized inputs/targets.
+    y_train_raw / y_eval_raw: unnormalized y values used for loss re-weighting.
     """
     if device is None:
         device = get_device()
-
     model.to(device)
-    X_tensor, y_tensor = convert_to_tensor(X_train, y_train, device)
 
-    # Weights based on original y values for Y-weighted component
+    X_tensor, y_tensor = convert_to_tensor(X_train, y_train, device)
     y_for_weights = y_train_raw if y_train_raw is not None else y_train
     weights = torch.tensor(y_for_weights, dtype=torch.float32).unsqueeze(1).to(device)
     weights = weights / weights.mean()
@@ -77,12 +75,10 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
     best_eval_loss = float('inf')
     best_model_state = None
     patience_counter = 0
-    min_delta = TRAIN_MIN_DELTA
 
     for n in range(epochs):
         model.train()
         optimizer.zero_grad()
-
         y_pred = model(X_tensor)
         loss = hybrid_mse_loss(y_pred, y_tensor, weights, loss_alpha)
         loss.backward()
@@ -109,24 +105,40 @@ def train_model(model, X_train, y_train, X_eval=None, y_eval=None,
                     model.load_state_dict(best_model_state)
                 break
 
-        if n % 10 == 0:
+        if n % log_every == 0:
             print(msg)
 
     return model
 
 
+def train(X_train_raw, y_train_raw, X_eval_raw, y_eval_raw,
+          model=None, device=None, **hyperparams):
+    """
+    End-to-end training from raw arrays. Returns (model, norm_params).
+    Extra keyword args (epochs, lr, patience, min_delta, loss_alpha) override
+    DEFAULT_HYPERPARAMS. Unknown kwargs raise TypeError.
+    """
+    hp = {**DEFAULT_HYPERPARAMS, **hyperparams}
+    model = model or BSModel()
+    device = device or get_device()
+
+    norm_params = compute_normalization_params(X_train_raw, y_train_raw)
+    X_train = normalize_X(X_train_raw, norm_params)
+    y_train = normalize_y(y_train_raw, norm_params)
+    X_eval = normalize_X(X_eval_raw, norm_params)
+    y_eval = normalize_y(y_eval_raw, norm_params)
+
+    model = fit(model, X_train, y_train, X_eval, y_eval,
+                device=device,
+                y_train_raw=y_train_raw, y_eval_raw=y_eval_raw,
+                **hp)
+    return model, norm_params
+
+
 def predict(model, X, norm_params, K=None, device=None):
     """
-    Run inference and return denormalized prices.
-    Use this for all validation and plot generation.
-
-    Args:
-        model: The trained model
-        X: Input features [log moneyness, T, r, sigma]
-        norm_params: Normalization parameters from training
-        K: Strike prices. If provided, returns actual call price C.
-           If None, returns C/K (the normalized price the model outputs).
-        device: Torch device
+    Run inference on raw 4-feature X; return denormalized prices.
+    If K is provided, multiplies C/K back to C.
     """
     if device is None:
         device = get_device()
@@ -139,23 +151,20 @@ def predict(model, X, norm_params, K=None, device=None):
         y_pred_norm = model(X_tensor).cpu().numpy()
 
     y_pred = denormalize_y(y_pred_norm, norm_params).flatten()
-
     if K is not None:
         return y_pred * K
     return y_pred
 
 
 def save_model(model, norm_params, filepath):
-    """Save model weights and normalization params to disk."""
     torch.save({
         'model_state_dict': model.state_dict(),
-        'norm_params': norm_params
+        'norm_params': norm_params,
     }, filepath)
     print(f"Model saved to {filepath}")
 
 
 def load_model(filepath, device=None):
-    """Load model weights and normalization params from disk."""
     if device is None:
         device = get_device()
 
@@ -163,12 +172,10 @@ def load_model(filepath, device=None):
     model = BSModel()
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
-    norm_params = checkpoint['norm_params']
-    return model, norm_params
+    return model, checkpoint['norm_params']
 
 
 def set_seed(seed=42):
-    """Set seeds for reproducibility."""
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -177,27 +184,20 @@ def set_seed(seed=42):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train neural network model")
-    parser.add_argument("--epochs", type=int, default=TRAIN_EPOCHS, help="Number of training epochs")
-    parser.add_argument("--patience", type=int, default=TRAIN_PATIENCE, help="Early stopping patience")
-    parser.add_argument("--lr", type=float, default=TRAIN_LR, help="Learning rate")
+    parser.add_argument("--epochs", type=int, default=TRAIN_EPOCHS)
+    parser.add_argument("--patience", type=int, default=TRAIN_PATIENCE)
+    parser.add_argument("--lr", type=float, default=TRAIN_LR)
     args = parser.parse_args()
 
     set_seed(TRAINING_SEED)
+    device = get_device(use_cpu=True)  # CPU for reproducibility
 
-    # Use CPU for reproducible training
-    device = get_device(use_cpu=True)
+    X_train_raw, y_train_raw = load_data(TRAIN_DATA_PATH)
+    X_eval_raw, y_eval_raw = load_data(EVAL_DATA_PATH)
 
-    model = BSModel()
-
-    # Preprocess
-    X_train, y_train = load_data(TRAIN_DATA_PATH)
-    X_eval, y_eval = load_data(EVAL_DATA_PATH)
-    norm_params = compute_normalization_params(X_train, y_train)
-
-    X_norm, y_norm = normalize_X(X_train, norm_params), normalize_y(y_train, norm_params)
-    X_eval_norm, y_eval_norm = normalize_X(X_eval, norm_params), normalize_y(y_eval, norm_params)
-    model = train_model(model, X_norm, y_norm, X_eval_norm, y_eval_norm, device,
-                        epochs=args.epochs, lr=args.lr, patience=args.patience,
-                        y_train_raw=y_train, y_eval_raw=y_eval)
-
+    model, norm_params = train(
+        X_train_raw, y_train_raw, X_eval_raw, y_eval_raw,
+        device=device,
+        epochs=args.epochs, lr=args.lr, patience=args.patience,
+    )
     save_model(model, norm_params, NN_MODEL_PATH)
