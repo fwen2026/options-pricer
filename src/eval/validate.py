@@ -1,9 +1,3 @@
-"""
-Model validation against Black-Scholes analytical formula.
-Supports NN and linear (ElasticNet) models via --model-type.
-Computes MAE, relative error, and generates diagnostic plots.
-"""
-
 import os
 import argparse
 import numpy as np

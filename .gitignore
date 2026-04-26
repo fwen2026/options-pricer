@@ -9,3 +9,7 @@ __pycache__/
 
 # artifacts
 artifacts/
+
+# notebook checkpoints
+
+notebooks/.ipynb_checkpoints/

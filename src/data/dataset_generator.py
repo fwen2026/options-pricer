@@ -32,6 +32,20 @@ class DataConfig:
     def replace(self, **overrides) -> "DataConfig":
         """Return a copy with the given fields overridden."""
         return replace(self, **overrides)
+    
+@dataclass
+class Dataset:
+    """ A dataset object for option pricing data. """
+    X: np.ndarray
+    y_call: np.ndarray
+    y_put: np.ndarray
+    
+@dataclass
+class DatasetBundle:
+    """ A bundle of train/val/test datasets. """
+    train: Dataset
+    val: Dataset
+    test: Dataset
 
 
 def generate_train_data(cfg: DataConfig = None):
@@ -56,7 +70,7 @@ def generate_train_data(cfg: DataConfig = None):
     y_put = (option.put_price() / K).astype(np.float32)
 
     X = np.stack((log_moneyness, T, r, sigma), axis=1).astype(np.float32)
-    return X, y_call, y_put
+    return Dataset(X, y_call, y_put)
 
 
 def generate_test_data(cfg: DataConfig = None):
@@ -81,39 +95,38 @@ def generate_test_data(cfg: DataConfig = None):
     y_put = option.put_price().astype(np.float32) / K
 
     X = np.stack((S, K, T, r, sigma), axis=1)
-    return X, y_call, y_put
+    return Dataset(X, y_call, y_put)
 
 
-def split_train_eval(X, y_call, y_put, eval_fraction: float, seed: int):
-    """Split a train-format dataset into train and eval partitions."""
+def split_train_val(dataset: Dataset, val_fraction: float, seed: int):
+    """Split a train-format dataset into (train, val) partitions."""
     np.random.seed(seed)
-    n = len(X)
+    n = len(dataset.X)
     indices = np.random.permutation(n)
-    eval_size = int(n * eval_fraction)
-    eval_idx = indices[:eval_size]
-    train_idx = indices[eval_size:]
+    val_size = int(n * val_fraction)
+    val_idx = indices[:val_size]
+    train_idx = indices[val_size:]
     return (
-        (X[train_idx], y_call[train_idx], y_put[train_idx]),
-        (X[eval_idx], y_call[eval_idx], y_put[eval_idx]),
+        Dataset(dataset.X[train_idx], dataset.y_call[train_idx], dataset.y_put[train_idx]),
+        Dataset(dataset.X[val_idx], dataset.y_call[val_idx], dataset.y_put[val_idx]),
     )
 
 
-def generate_train_eval_test(cfg: DataConfig = None):
-    """
-    Convenience: produce (train, eval, test) triples in one call for notebooks.
-    Returns a dict of dicts: {'train': {'X', 'y_call', 'y_put'}, 'eval': {...}, 'test': {...}}
-    """
+def generate_bundle(cfg: DataConfig = None) -> DatasetBundle:
+    """Produce a train/val/test bundle in one call."""
     cfg = cfg or DataConfig()
-    X, y_call, y_put = generate_train_data(cfg)
-    (X_tr, yc_tr, yp_tr), (X_ev, yc_ev, yp_ev) = split_train_eval(
-        X, y_call, y_put, cfg.eval_fraction, cfg.train_seed
-    )
-    X_te, yc_te, yp_te = generate_test_data(cfg)
-    return {
-        'train': {'X': X_tr, 'y_call': yc_tr, 'y_put': yp_tr},
-        'eval':  {'X': X_ev, 'y_call': yc_ev, 'y_put': yp_ev},
-        'test':  {'X': X_te, 'y_call': yc_te, 'y_put': yp_te},
-    }
+    full_train = generate_train_data(cfg)
+    train, val = split_train_val(full_train, cfg.eval_fraction, cfg.train_seed)
+    test = generate_test_data(cfg)
+    return DatasetBundle(train=train, val=val, test=test)
+
+
+def _save_dataset(dataset: Dataset, filepath: str):
+    np.savez(filepath,
+             X=dataset.X,
+             y_call=dataset.y_call,
+             y_put=dataset.y_put,
+             n=len(dataset.X))
 
 
 def save_datasets(cfg: DataConfig = None,
@@ -122,27 +135,15 @@ def save_datasets(cfg: DataConfig = None,
                   test_filepath=TEST_DATA_PATH):
     """Generate under cfg and persist to disk."""
     cfg = cfg or DataConfig()
-    bundle = generate_train_eval_test(cfg)
+    bundle = generate_bundle(cfg)
 
-    np.savez(train_filepath,
-             X=bundle['train']['X'],
-             y_call=bundle['train']['y_call'],
-             y_put=bundle['train']['y_put'],
-             n=len(bundle['train']['X']))
-    np.savez(eval_filepath,
-             X=bundle['eval']['X'],
-             y_call=bundle['eval']['y_call'],
-             y_put=bundle['eval']['y_put'],
-             n=len(bundle['eval']['X']))
-    np.savez(test_filepath,
-             X=bundle['test']['X'],
-             y_call=bundle['test']['y_call'],
-             y_put=bundle['test']['y_put'],
-             n=len(bundle['test']['X']))
+    _save_dataset(bundle.train, train_filepath)
+    _save_dataset(bundle.val, eval_filepath)
+    _save_dataset(bundle.test, test_filepath)
 
-    print(f"Saved train ({len(bundle['train']['X'])}), "
-          f"eval ({len(bundle['eval']['X'])}), "
-          f"test ({len(bundle['test']['X'])}) datasets")
+    print(f"Saved train ({len(bundle.train.X)}), "
+          f"val ({len(bundle.val.X)}), "
+          f"test ({len(bundle.test.X)}) datasets")
 
 
 if __name__ == "__main__":

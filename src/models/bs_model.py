@@ -8,10 +8,10 @@ class BSModel(nn.Module):
         self.layers = nn.ModuleList()
         for i in range(len(layers) - 1):
             self.layers.append(nn.Linear(layers[i], layers[i + 1]))
-        self.relu = nn.ReLU()
+        self.activation = nn.ReLU()
 
     def forward(self, x):
         for layer in self.layers[:-1]:
-            x = self.relu(layer(x))
+            x = self.activation(layer(x))
         x = self.layers[-1](x)
         return x
