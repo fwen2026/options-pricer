@@ -13,7 +13,7 @@ DATA_EVAL_FRACTION = 0.1
 S_RANGE = (20, 140)
 LOG_MONEYNESS_RANGE = (-2, 2)
 T_RANGE = (0.01, 2.0)
-R_DEFAULT = 0.3
+R_DEFAULT = 0.02
 SIGMA_RANGE = (0.1, 0.5)
 SIGMA_CLIP = (0.05, 0.6)
 
@@ -22,9 +22,9 @@ MODEL_LAYERS = [4, 128, 128, 64, 1]
 
 # ---- Training Hyperparameters ----
 # NN
-TRAIN_EPOCHS = 200
+TRAIN_EPOCHS = 400
 TRAIN_LR = 1e-3
-TRAIN_PATIENCE = 10
+TRAIN_PATIENCE = 25
 TRAIN_MIN_DELTA = 5e-4
 TRAIN_LOSS_ALPHA = 0.5  # weights both rel and abs equally
 # Elastic Net
