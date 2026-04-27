@@ -100,13 +100,13 @@ def fit(model, X_train, y_train, X_eval=None, y_eval=None,
                 patience_counter += 1
 
             if patience_counter >= patience:
-                print(f"Early stopping at epoch {n}")
+                print(f"Early stopping at epoch {n}", flush=True)
                 if best_model_state is not None:
                     model.load_state_dict(best_model_state)
                 break
 
         if n % log_every == 0:
-            print(msg)
+            print(msg, flush=True)
 
     return model
 
