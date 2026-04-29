@@ -29,6 +29,8 @@ class DataConfig:
     train_seed: int = TRAIN_DATA_SEED
     test_seed: int = TEST_DATA_SEED
 
+    feature_mode: str = "log-moneyness"
+
     def replace(self, **overrides) -> "DataConfig":
         """Return a copy with the given fields overridden."""
         return replace(self, **overrides)
@@ -68,8 +70,12 @@ def generate_train_data(cfg: DataConfig = None):
     option = BlackScholesOption(S, K, T, r, sigma)
     y_call = (option.call_price() / K).astype(np.float32)
     y_put = (option.put_price() / K).astype(np.float32)
-
-    X = np.stack((log_moneyness, T, r, sigma), axis=1).astype(np.float32)
+    if cfg.feature_mode == "log-moneyness":
+        X = np.stack((log_moneyness, T, r, sigma), axis=1).astype(np.float32)
+    elif cfg.feature_mode == "raw":
+        X = np.stack((S, K, T, r, sigma), axis=1).astype(np.float32)
+    else:
+        raise ValueError(f"Unknown feature mode: {cfg.feature_mode}")
     return Dataset(X, y_call, y_put)
 
 

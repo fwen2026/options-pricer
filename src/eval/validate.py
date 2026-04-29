@@ -51,13 +51,14 @@ def compute_metrics(y_true, y_pred, min_value_threshold=0.01):
     }
 
 
-def plot_validation_results(X, y_true, y_pred, metrics, style, is_raw_format=True, save_dir=PLOTS_DIR):
+def plot_validation_results(X, y_true, y_pred, metrics, style, is_raw_format=True, save_dir=None):
     """
     Generate diagnostic plots for model validation.
     is_raw_format: True if X is [S, K, T, r, sigma], False if [log_moneyness, T, r, sigma]
     style: dict with 'color', 'cmap', 'suffix', 'display_name'
     """
-    os.makedirs(save_dir, exist_ok=True)
+    if save_dir is not None:
+        os.makedirs(save_dir, exist_ok=True)
 
     if is_raw_format:
         S, K, T, sigma = X[:, 0], X[:, 1], X[:, 2], X[:, 4]
@@ -108,17 +109,20 @@ def plot_validation_results(X, y_true, y_pred, metrics, style, is_raw_format=Tru
     ax.set_xlabel('Volatility (sigma)')
     ax.set_ylabel('Absolute Error')
     ax.set_title('Error vs Volatility')
-
+    
     plt.tight_layout()
-    out_path = os.path.join(save_dir, f'validation_results{style["suffix"]}.png')
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    print(f"Saved validation plots to {out_path}")
+    if save_dir is not None:
+        out_path = os.path.join(save_dir, f'validation_results{style["suffix"]}.png')
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+        print(f"Saved validation plots to {out_path}")
+        plot_error_heatmap(log_moneyness, T, metrics['relative_errors'], style, save_dir)
+    else:
+        plt.show()
+        plot_error_heatmap(log_moneyness, T, metrics['relative_errors'], style)
 
-    plot_error_heatmap(log_moneyness, T, metrics['relative_errors'], style, save_dir)
 
-
-def plot_error_heatmap(log_moneyness, T, relative_errors, style, save_dir):
+def plot_error_heatmap(log_moneyness, T, relative_errors, style, save_dir=None):
     """
     Heatmap of relative errors binned by moneyness and time to expiry.
     """
@@ -149,10 +153,13 @@ def plot_error_heatmap(log_moneyness, T, relative_errors, style, save_dir):
     ax.set_title(f'Relative Error Heatmap ({style["display_name"]})')
 
     plt.tight_layout()
-    out_path = os.path.join(save_dir, f'error_heatmap{style["suffix"]}.png')
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    print(f"Saved error heatmap to {out_path}")
+    if save_dir is not None:
+        out_path = os.path.join(save_dir, f'error_heatmap{style["suffix"]}.png')
+        plt.savefig(out_path, dpi=150)
+        plt.close()
+        print(f"Saved error heatmap to {out_path}")
+    else:
+        plt.show()
 
 
 def print_metrics_report(metrics, display_name):
