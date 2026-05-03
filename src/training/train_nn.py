@@ -112,17 +112,24 @@ def fit(model, X_train, y_train, X_eval=None, y_eval=None,
 
 
 def train(X_train_raw, y_train_raw, X_eval_raw, y_eval_raw,
-          model=None, device=None, **hyperparams):
+          model=None, device=None, standardize=True, hybrid_loss=True,
+          **hyperparams):
     """
     End-to-end training from raw arrays. Returns (model, norm_params).
     Extra keyword args (epochs, lr, patience, min_delta, loss_alpha) override
     DEFAULT_HYPERPARAMS. Unknown kwargs raise TypeError.
+
+    standardize=False disables z-score normalization and log transform.
+    hybrid_loss=False forces loss_alpha=1.0 (plain MSE, no y-weighting).
     """
     hp = {**DEFAULT_HYPERPARAMS, **hyperparams}
+    if not hybrid_loss:
+        hp['loss_alpha'] = 1.0
     model = model or BSModel()
     device = device or get_device()
 
-    norm_params = compute_normalization_params(X_train_raw, y_train_raw)
+    norm_params = compute_normalization_params(X_train_raw, y_train_raw,
+                                               standardize=standardize)
     X_train = normalize_X(X_train_raw, norm_params)
     y_train = normalize_y(y_train_raw, norm_params)
     X_eval = normalize_X(X_eval_raw, norm_params)
