@@ -33,11 +33,13 @@ def fit(model, X_train, y_train, X_eval=None, y_eval=None, verbose=50):
     return model
 
 
-def train(X_train, y_train_raw, X_eval, y_eval_raw, **hyperparams):
+def train(X_train, y_train_raw, X_eval, y_eval_raw,
+           standardized_data=True,
+           **hyperparams):
     """
     End-to-end training from raw (unnormalized) arrays. Returns (model, norm_params).
     """
-    norm_params = compute_normalization_params(X_train, y_train_raw)
+    norm_params = compute_normalization_params(X_train, y_train_raw, standardize=standardized_data)
     y_train = normalize_y(y_train_raw, norm_params)
     y_eval = normalize_y(y_eval_raw, norm_params)
 
