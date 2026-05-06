@@ -29,6 +29,7 @@ def implied_vol_solver(S: float, K: float, T: float, r: float, market_price: flo
         else:
             return max(math.sqrt(2 * abs(log_moneyness + r * T) / T), 0.01)
 
+    # If Newton Raphson fails, try bisection.
     try:
         implied_vol = newton_raphson_solver(objective, get_seed_sigma(), df=vega)
     except ValueError:
