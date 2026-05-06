@@ -4,7 +4,7 @@ from scipy.stats import norm
 # Black-Scholes option pricing model. also used to generate data for a model. 
 # Inputs can either be a dataset as a NumPy array or just floats.
 class BlackScholesOption:
-    def __init__(self, S, K, T, r, sigma):
+    def __init__(self, S, K, T, r, sigma=None):
         self.S = S  # underlying asset price
         self.K = K  # strike price
         self.T = T  # time to expiration

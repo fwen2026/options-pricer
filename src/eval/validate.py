@@ -176,19 +176,19 @@ def print_metrics_report(metrics, display_name):
 
 
 def _load_and_predict_nn(model_path):
-    from src.training.train_nn import load_model, predict
+    from training.bs.train_nn import load_model, predict
     model, norm_params = load_model(model_path)
     return lambda X: predict(model, X, norm_params)
 
 
 def _load_and_predict_linear(model_path):
-    from src.training.train_linear import load_model, predict
+    from training.bs.train_linear import load_model, predict
     model, norm_params = load_model(model_path)
     return lambda X: predict(model, X, norm_params)
 
 
 def _load_and_predict_xgboost(model_path):
-    from src.training.train_xgboost import load_model, predict
+    from training.bs.train_xgboost import load_model, predict
     model, norm_params = load_model(model_path)
     return lambda X: predict(model, X, norm_params)
 
