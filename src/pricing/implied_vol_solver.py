@@ -1,6 +1,6 @@
 from src.pricing.black_scholes import BlackScholesOption
 from src.util.newton_raphson import newton_raphson_solver
-from src.util.bisection import bisection
+from scipy.optimize import brentq
 import numpy as np
 import math
 
@@ -29,10 +29,10 @@ def implied_vol_solver(S: float, K: float, T: float, r: float, market_price: flo
         else:
             return max(math.sqrt(2 * abs(log_moneyness + r * T) / T), 0.01)
 
-    # If Newton Raphson fails, try bisection.
+    # If Newton Raphson fails, fall back to Brent's method.
     try:
         implied_vol = newton_raphson_solver(objective, get_seed_sigma(), df=vega)
     except ValueError:
-        implied_vol = bisection(objective, 1e-6, 5.0, tolerance=1e-8, max_iterations=200)
+        implied_vol = brentq(objective, 1e-6, 5.0, xtol=1e-8, maxiter=200)
         
     return implied_vol
