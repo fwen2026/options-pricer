@@ -37,9 +37,9 @@ axes[1].set_xlabel("Time (years)")
 axes[1].legend()
 
 plt.tight_layout()
-plt.savefig("tests/heston_mc_paths.png", dpi=150)
+plt.savefig("artifacts/plots/heston_mc_paths.png", dpi=150)
 plt.close()
-print("Saved: tests/heston_mc_paths.png")
+print("Saved: artifacts/plots/heston_mc_paths.png")
 
 # --- 2. Martingale test (no-arbitrage) ---
 # Under risk-neutral measure, E[S_T * exp(-rT)] should equal S0.
