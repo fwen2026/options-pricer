@@ -19,18 +19,17 @@ class HestonModel:
         return self.v0, self.S0
     
     
-    def update(self, nu_0, theta, rho, kappa, xi):
+    def update(self, v0, theta, rho, kappa, xi):
         """Updates simulation params"""
-        self.nu_0 = nu_0
-        self.theta = theta # long-run variance
-        self.rho = rho 
-        self.kappa = kappa # mean reversion
-        self.xi = xi # vol of vol
+        self.v0 = v0
+        self.theta = theta
+        self.rho = rho
+        self.kappa = kappa
+        self.xi = xi
 
 
-    def get_random_variables(self, paths, seed):
+    def get_random_variables(self, paths, rng):
         """Gets the delta of each Wiener process for our model"""
-        rng = np.random.default_rng(seed=seed)
         Z1 = rng.standard_normal(paths)
         Z2 = rng.standard_normal(paths)
         
@@ -48,6 +47,7 @@ class HestonModel:
     def get_dS(self, S, dZ1, v):
         """Truncated Euler method."""
         dS = self.r * S * self.dt + S * np.sqrt(v * self.dt) * dZ1
+        return dS
         
     
     def generate_prices(self,
@@ -56,18 +56,23 @@ class HestonModel:
                         paths=100_000
         ):
             """Monte-Carlo simulation, 100000 paths as default."""
+            rng = np.random.default_rng(seed=seed)
+
             S = np.empty((steps+1, paths))
             v = np.empty((steps+1, paths))
-            
+
             S[0] = self.S0
             v[0] = self.v0
-            
+
             for t in range(steps):
-                dZ1, dZ2 = self.get_random_variables(paths, seed)
+                dZ1, dZ2 = self.get_random_variables(paths, rng)
+
                 v_pos = np.maximum(v[t], 0)
-                
+
                 S[t+1] = S[t] + self.get_dS(S[t], dZ1, v_pos)
                 v[t+1] = v[t] + self.get_dv(v_pos, dZ2)
+
+                v[t+1] = np.maximum(v[t+1], 0)
 
             return S, v
         
