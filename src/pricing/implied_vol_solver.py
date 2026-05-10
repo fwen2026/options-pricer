@@ -9,7 +9,7 @@ def implied_vol_solver(S: float, K: float, T: float, r: float, market_price: flo
                        option_type: str = "call") -> float:
     """
     Solve for the implied volatility of a European option using the Black-Scholes model.
-    Newton-Raphson with clamped steps, falling back to bisection on failure.
+    Newton-Raphson with clamped steps, falling back to Brent's on failure.
     """
     option = BlackScholesOption(S=S, K=K, T=T, r=r)
     price_fn = option.call_price if option_type == "call" else option.put_price
