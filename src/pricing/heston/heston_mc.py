@@ -1,6 +1,6 @@
 import numpy as np
 
-class HestonModel:
+class HestonMCSim:
     def __init__(self, S0, v0, 
                     theta, rho, kappa, xi, r,
                     dt=1e-3):
@@ -75,5 +75,3 @@ class HestonModel:
                 v[t+1] = np.maximum(v[t+1], 0)
 
             return S, v
-        
-

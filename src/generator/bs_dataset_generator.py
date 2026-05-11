@@ -3,7 +3,7 @@ from typing import Tuple
 
 import numpy as np
 
-from src.pricing.black_scholes import BlackScholesOption
+from pricing.bs.black_scholes import BlackScholesOption
 from src.constants import (
     DATA_TRAIN_SIZE, DATA_TEST_SIZE, DATA_EVAL_FRACTION,
     S_RANGE, LOG_MONEYNESS_RANGE, T_RANGE, R_DEFAULT, SIGMA_RANGE, SIGMA_CLIP,

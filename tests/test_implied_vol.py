@@ -1,6 +1,6 @@
 import numpy as np
-from src.pricing.black_scholes import BlackScholesOption
-from src.pricing.implied_vol_solver import implied_vol_solver
+from pricing.bs.black_scholes import BlackScholesOption
+from pricing.bs.implied_vol_solver import implied_vol_solver
 
 
 def test_roundtrip_atm_call():

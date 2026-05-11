@@ -4,7 +4,7 @@ sys.path.insert(0, '.')
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from src.pricing.heston_mc import HestonModel
+from pricing.heston.heston_mc import HestonModel
 
 
 # Typical Heston params

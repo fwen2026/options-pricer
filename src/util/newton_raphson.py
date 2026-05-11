@@ -9,8 +9,8 @@ def newton_raphson_solver(f, x0, df=None,
                             iterations=1000,
                             bounds=(1e-6, 5.0)):
     """
-    Newton-Raphson solver on a function f. If no derivative df is given, computes a numerical derivative.
-    Solver is clamped to stay within bounds.
+    Custom Newton-Raphson solver on a function f. If no derivative df is given, computes a numerical derivative.
+    Solver is clamped to stay within bounds (idt scipy's solver does this?).
     """
     x = x0
     lo, hi = bounds

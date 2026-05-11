@@ -1,4 +1,4 @@
-from src.pricing.black_scholes import BlackScholesOption
+from pricing.bs.black_scholes import BlackScholesOption
 from src.util.newton_raphson import newton_raphson_solver
 from scipy.optimize import brentq
 import numpy as np
