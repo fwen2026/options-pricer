@@ -74,3 +74,36 @@ class CarrMadanSolver:
         price = np.exp(-alpha * k) / np.pi * result
         discount = np.exp(-self.model.r * T)
         return discount * price
+    
+    
+    def solve_fft(self, T):
+        """Solve for one expiry slice using Carr-Madan FFT.
+
+        Returns:
+            Tuple of strike grid K and call prices C on that grid.
+        """
+        i = 1j
+
+        v_grid = np.arange(self.N) * self.eta
+        lambd = 2 * np.pi / (self.N * self.eta)
+        
+        b = 0.5 * lambd * self.N
+        k_grid = np.arange(self.N) * lambd - b
+        K_grid = np.exp(k_grid)
+
+        u = v_grid - i * (self.alpha + 1)
+
+        phi = self.model.characteristic_fn(u, T)
+
+        discount = np.exp(-self.model.r * T)
+        integrand = discount * phi / (
+            self.alpha**2 + self.alpha - v_grid**2 + 
+            1j * (2 * self.alpha + 1) * v_grid)
+
+        weights = np.ones(self.N)
+        weights[0] = 0.5
+
+        modified_integrand = np.exp(i * b * v_grid) * integrand * weights * self.eta
+        fft = np.fft.fft(modified_integrand)
+        C_grid = np.exp(-self.alpha * k_grid) / np.pi * np.real(fft)
+        return K_grid, C_grid

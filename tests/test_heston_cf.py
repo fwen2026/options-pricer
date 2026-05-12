@@ -41,3 +41,20 @@ for K in strikes:
 
 print(f"\nAvg time per price: {np.mean(times)*1000:.2f} ms")
 print(f"Estimated time for 200-point grid: {np.mean(times)*200:.2f} s")
+
+start = time.perf_counter()
+K_grid, C_grid = solver.solve_fft(T)
+elapsed = time.perf_counter() - start
+
+near_atm_idx = np.argmin(np.abs(K_grid - 100))
+positive_idx = C_grid > 0
+
+print(f"\nCarr-Madan FFT price grid (T={T}):")
+print(f"  Generated prices: {len(C_grid)}")
+print(f"  Positive prices: {np.count_nonzero(positive_idx)}")
+print(f"  K range: [{K_grid[0]:.6f}, {K_grid[-1]:.6f}]")
+print(
+    f"  Nearest ATM: K={K_grid[near_atm_idx]:.4f}, "
+    f"price={C_grid[near_atm_idx]:.6f}"
+)
+print(f"Time for FFT price grid: {elapsed*1000:.2f} ms")
