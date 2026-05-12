@@ -17,15 +17,17 @@ class HestonMCSim:
     def get_initial_conditions(self):
         """Gets the initial conditions for the model"""
         return self.v0, self.S0
-    
-    
-    def update(self, v0, theta, rho, kappa, xi):
+
+
+    def update(self, S0, v0, theta, rho, kappa, xi, r):
         """Updates simulation params"""
+        self.S0 = S0
         self.v0 = v0
         self.theta = theta
         self.rho = rho
         self.kappa = kappa
         self.xi = xi
+        self.r = r
 
 
     def get_random_variables(self, paths, rng):
