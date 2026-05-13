@@ -3,9 +3,9 @@ from scipy.integrate import quad
 from src.util.synthetic_iv_config import config_value, resolve_config
 
 class HestonCFModel:
-    def __init__(self, S0=None, v0=None, theta=None, rho=None, kappa=None, xi=None, r=None, cfg=None):
+    def __init__(self, S0=None, v0=None, theta=None, rho=None, kappa=None, xi=None, r=None, cfg=None, rng=None):
         if cfg is not None or any(x is None for x in (S0, v0, theta, rho, kappa, xi, r)):
-            params = self._params_from_cfg(resolve_config(cfg))
+            params = self._params_from_cfg(resolve_config(cfg), rng=rng)
             S0 = params["S0"] if S0 is None else S0
             v0 = params["v0"] if v0 is None else v0
             theta = params["theta"] if theta is None else theta
@@ -24,24 +24,24 @@ class HestonCFModel:
 
 
     @classmethod
-    def from_cfg(cls, cfg=None, **overrides):
-        params = cls._params_from_cfg(resolve_config(cfg))
+    def from_cfg(cls, cfg=None, rng=None, **overrides):
+        params = cls._params_from_cfg(resolve_config(cfg), rng=rng)
         params.update({k: v for k, v in overrides.items() if v is not None})
         return cls(**params)
 
 
     @staticmethod
-    def _params_from_cfg(cfg):
+    def _params_from_cfg(cfg, rng=None):
         cfg = resolve_config(cfg)
         heston_cfg = cfg["heston"]
         return {
-            "S0": config_value(heston_cfg["s0"]),
-            "v0": config_value(heston_cfg["v0"]),
-            "theta": config_value(heston_cfg["theta"]),
-            "rho": config_value(heston_cfg["rho"]),
-            "kappa": config_value(heston_cfg["kappa"]),
-            "xi": config_value(heston_cfg["xi"]),
-            "r": config_value(heston_cfg["r"]),
+            "S0": config_value(heston_cfg["s0"], rng=rng),
+            "v0": config_value(heston_cfg["v0"], rng=rng),
+            "theta": config_value(heston_cfg["theta"], rng=rng),
+            "rho": config_value(heston_cfg["rho"], rng=rng),
+            "kappa": config_value(heston_cfg["kappa"], rng=rng),
+            "xi": config_value(heston_cfg["xi"], rng=rng),
+            "r": config_value(heston_cfg["r"], rng=rng),
         }
 
 
@@ -137,7 +137,7 @@ class CarrMadanSolver:
         v_grid = np.arange(self.N) * self.eta
         lambd = 2 * np.pi / (self.N * self.eta)
         
-        b = 0.5 * lambd * self.N
+        b = 0.5 * lambd * self.N - np.log(self.model.S0)
         k_grid = np.arange(self.N) * lambd - b
         K_grid = np.exp(k_grid)
 

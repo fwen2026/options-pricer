@@ -4,7 +4,7 @@ def numerical_derivative(f, x, dx=1e-8):
 
 
 def newton_raphson_solver(f, x0, df=None,
-                            tolerance=1e-10,
+                            tolerance=1e-6,
                             derivative_tolerance=1e-12,
                             iterations=1000,
                             bounds=(1e-6, 5.0),

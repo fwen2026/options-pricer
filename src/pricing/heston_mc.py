@@ -5,9 +5,10 @@ class HestonMCSim:
     def __init__(self, S0=None, v0=None,
                     theta=None, rho=None, kappa=None, xi=None, r=None,
                     dt=None,
-                    cfg=None):
+                    cfg=None,
+                    rng=None):
         if cfg is not None or dt is None or any(x is None for x in (S0, v0, theta, rho, kappa, xi, r)):
-            params = self._params_from_cfg(resolve_config(cfg))
+            params = self._params_from_cfg(resolve_config(cfg), rng=rng)
             S0 = params["S0"] if S0 is None else S0
             v0 = params["v0"] if v0 is None else v0
             theta = params["theta"] if theta is None else theta
@@ -28,25 +29,25 @@ class HestonMCSim:
 
 
     @classmethod
-    def from_cfg(cls, cfg=None, **overrides):
-        params = cls._params_from_cfg(resolve_config(cfg))
+    def from_cfg(cls, cfg=None, rng=None, **overrides):
+        params = cls._params_from_cfg(resolve_config(cfg), rng=rng)
         params.update({k: v for k, v in overrides.items() if v is not None})
         return cls(**params)
 
 
     @staticmethod
-    def _params_from_cfg(cfg):
+    def _params_from_cfg(cfg, rng=None):
         cfg = resolve_config(cfg)
         heston_cfg = cfg["heston"]
         return {
-            "S0": config_value(heston_cfg["s0"]),
-            "v0": config_value(heston_cfg["v0"]),
-            "theta": config_value(heston_cfg["theta"]),
-            "rho": config_value(heston_cfg["rho"]),
-            "kappa": config_value(heston_cfg["kappa"]),
-            "xi": config_value(heston_cfg["xi"]),
-            "r": config_value(heston_cfg["r"]),
-            "dt": config_value(cfg.get("mc", {}).get("dt", 1e-3)),
+            "S0": config_value(heston_cfg["s0"], rng=rng),
+            "v0": config_value(heston_cfg["v0"], rng=rng),
+            "theta": config_value(heston_cfg["theta"], rng=rng),
+            "rho": config_value(heston_cfg["rho"], rng=rng),
+            "kappa": config_value(heston_cfg["kappa"], rng=rng),
+            "xi": config_value(heston_cfg["xi"], rng=rng),
+            "r": config_value(heston_cfg["r"], rng=rng),
+            "dt": config_value(cfg.get("mc", {}).get("dt", 1e-3), rng=rng),
         }
         
         
@@ -128,4 +129,3 @@ class HestonMCSim:
                 v[t+1] = np.maximum(v[t+1], 0)
 
             return S, v
-

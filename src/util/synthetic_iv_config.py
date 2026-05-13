@@ -1,5 +1,5 @@
 from pathlib import Path
-
+import numpy as np
 import yaml
 
 
@@ -18,8 +18,9 @@ def resolve_config(cfg=None):
     return load_synthetic_iv_config() if cfg is None else cfg
 
 
-def config_value(value):
-    """Resolve scalar config values, using range midpoints for min/max dicts."""
+def config_value(value, rng=None):
+    """Resolve scalar config values, sampling uniformly for min/max dicts."""
     if isinstance(value, dict) and "min" in value and "max" in value:
-        return 0.5 * (value["min"] + value["max"])
+        sampler = rng if rng is not None else np.random
+        return sampler.uniform(value["min"], value["max"])
     return value

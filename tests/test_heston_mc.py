@@ -9,7 +9,8 @@ from src.util.synthetic_iv_config import load_synthetic_iv_config
 
 
 cfg = load_synthetic_iv_config()
-model = HestonModel.from_cfg(cfg)
+rng = np.random.default_rng(cfg["seed"])
+model = HestonModel.from_cfg(cfg, rng=rng)
 
 T = 1.0
 steps = int(T / model.dt)

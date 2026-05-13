@@ -4,15 +4,15 @@ fft:
   eta: 0.25
 
 surface_grid:
-  use_lm: true
-  num_strikes: 64
-  lm_min : -1.5 # standard. no weird itm or otm stuff for now
-  lm_max: 1.5 
-
   t_min: 0.01
   t_max: 2.0
-  t_distrib: log
+  log_t: true
   t_steps: 32
+
+  use_lm: true
+  lm_min: -2.0
+  lm_max: 2.0
+  lm_steps: 96
 
 heston:
     s0: 100
@@ -41,7 +41,7 @@ heston:
 seed: 42
 
 dataset:
-  num_samples: 100000
+  num_samples: 5000
   split:
     train: 0.8
     val: 0.1

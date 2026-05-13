@@ -1,0 +1,91 @@
+from src.util.synthetic_iv_config import resolve_config
+from src.pricing.heston_cf import CarrMadanSolver, HestonCFModel
+from src.pricing.implied_vol_solver import implied_vol_solver
+import numpy as np
+
+
+# These are mostly a list of helper funcs for dataset generation scripts
+
+def generate_single_surface(surface_id, cfg=None, rng=None):
+    """Generate one Heston price surface on the FFT strike grid."""
+    cfg = resolve_config(cfg)
+    rng = np.random.default_rng(cfg["seed"]) if rng is None else rng
+    model = HestonCFModel.from_cfg(cfg, rng=rng)
+    solver = CarrMadanSolver(model, cfg=cfg)
+
+    cfg_surface = cfg["surface_grid"]
+
+    X_values = []
+    # log distrib. iv surfaces tend to become more unstable at low T values.
+    if cfg_surface["log_t"]:
+        T_grid = np.geomspace(cfg_surface["t_min"], cfg_surface["t_max"], cfg_surface["t_steps"])
+    else:
+        T_grid = np.linspace(cfg_surface["t_min"], cfg_surface["t_max"], cfg_surface["t_steps"])
+    T_grid = np.sort(T_grid)
+
+    K_grid = None
+    price_slices = []
+
+    for T in T_grid:
+        K_slice, C_slice = solver.solve_fft(T)
+        if K_grid is None:
+            K_grid = K_slice # determinism is lovely
+        price_slices.append(C_slice)
+
+    C_grid = np.stack(price_slices, axis=0)
+    lm_grid = np.log(model.S0 / K_grid)
+
+    mask = (lm_grid >= cfg_surface["lm_min"]) & (lm_grid <= cfg_surface["lm_max"])
+
+    lm_grid = lm_grid[mask]
+    C_grid = C_grid[:, mask]
+    
+    sort_idx = np.argsort(lm_grid) # sort because we invert the original K values.
+    lm_grid = lm_grid[sort_idx]
+    C_grid = C_grid[:, sort_idx]
+
+    # interpolate onto a 96 element canonical array
+    target_lm = np.linspace(cfg_surface["lm_min"], cfg_surface["lm_max"], cfg_surface["lm_steps"])
+
+    resampled_C = np.array([
+        np.interp(target_lm, lm_grid, row)
+        for row in C_grid
+    ])
+
+    # FINALLY time for reshaping and input generation.
+    TT, LM = np.meshgrid(T_grid, target_lm, indexing="ij")
+
+    T_flat = TT.ravel()
+    LM_flat = LM.ravel()
+    
+    sqrt_T_flat = np.sqrt(T_flat)
+    C_flat = resampled_C.ravel()
+    K_flat = model.S0 / np.exp(LM_flat)
+    
+    forward_flat = model.S0 * np.exp(model.r * T_flat)
+    forward_LM_flat = np.log(forward_flat / K_flat)
+    discount_factor_flat = np.exp(-model.r * T_flat)
+
+    params_flat = np.tile(model.params, (T_flat.size, 1))
+
+    S0_flat = np.full_like(T_flat, model.S0)
+    surface_id_flat = np.full(T_flat.shape, surface_id, dtype=int)
+    
+    iv_flat = np.full_like(T_flat, np.nan) 
+    for i in range(len(T_flat)):
+        if not np.isnan(C_flat[i]):
+            iv_flat[i] = implied_vol_solver(model.S0, K_flat[i], T_flat[i], model.r, C_flat[i], option_type="call", cfg=cfg)
+
+    total_variance_flat = iv_flat ** 2 * T_flat
+    
+    return {
+        "S0": S0_flat,
+        "K": K_flat,
+        "T": T_flat,
+        "C": C_flat,
+        "iv": iv_flat,
+        "total_variance": total_variance_flat,
+        "params": params_flat,
+        "discount_factor": discount_factor_flat,
+        "surface_id": surface_id_flat,
+    }

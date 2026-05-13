@@ -7,7 +7,8 @@ from src.pricing.heston_cf import HestonCFModel, CarrMadanSolver
 from src.util.synthetic_iv_config import load_synthetic_iv_config
 
 cfg = load_synthetic_iv_config()
-model = HestonCFModel.from_cfg(cfg)
+rng = np.random.default_rng(cfg["seed"])
+model = HestonCFModel.from_cfg(cfg, rng=rng)
 
 solver = CarrMadanSolver(model, cfg=cfg)
 
