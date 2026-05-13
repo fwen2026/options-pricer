@@ -1,8 +1,19 @@
 import numpy as np
 from scipy.integrate import quad
+from src.util.synthetic_iv_config import config_value, resolve_config
 
 class HestonCFModel:
-    def __init__(self, S0, v0, theta, rho, kappa, xi, r):
+    def __init__(self, S0=None, v0=None, theta=None, rho=None, kappa=None, xi=None, r=None, cfg=None):
+        if cfg is not None or any(x is None for x in (S0, v0, theta, rho, kappa, xi, r)):
+            params = self._params_from_cfg(resolve_config(cfg))
+            S0 = params["S0"] if S0 is None else S0
+            v0 = params["v0"] if v0 is None else v0
+            theta = params["theta"] if theta is None else theta
+            rho = params["rho"] if rho is None else rho
+            kappa = params["kappa"] if kappa is None else kappa
+            xi = params["xi"] if xi is None else xi
+            r = params["r"] if r is None else r
+
         self.S0 = S0
         self.v0 = v0
         self.theta = theta
@@ -12,7 +23,39 @@ class HestonCFModel:
         self.r = r
 
 
-    def update(self, S0, v0, theta, rho, kappa, xi, r):
+    @classmethod
+    def from_cfg(cls, cfg=None, **overrides):
+        params = cls._params_from_cfg(resolve_config(cfg))
+        params.update({k: v for k, v in overrides.items() if v is not None})
+        return cls(**params)
+
+
+    @staticmethod
+    def _params_from_cfg(cfg):
+        cfg = resolve_config(cfg)
+        heston_cfg = cfg["heston"]
+        return {
+            "S0": config_value(heston_cfg["s0"]),
+            "v0": config_value(heston_cfg["v0"]),
+            "theta": config_value(heston_cfg["theta"]),
+            "rho": config_value(heston_cfg["rho"]),
+            "kappa": config_value(heston_cfg["kappa"]),
+            "xi": config_value(heston_cfg["xi"]),
+            "r": config_value(heston_cfg["r"]),
+        }
+
+
+    def update(self, S0=None, v0=None, theta=None, rho=None, kappa=None, xi=None, r=None, cfg=None):
+        if cfg is not None:
+            params = self._params_from_cfg(cfg)
+            S0 = params["S0"] if S0 is None else S0
+            v0 = params["v0"] if v0 is None else v0
+            theta = params["theta"] if theta is None else theta
+            rho = params["rho"] if rho is None else rho
+            kappa = params["kappa"] if kappa is None else kappa
+            xi = params["xi"] if xi is None else xi
+            r = params["r"] if r is None else r
+
         self.S0 = S0
         self.v0 = v0
         self.theta = theta
@@ -50,11 +93,18 @@ class HestonCFModel:
     
     
 class CarrMadanSolver:
-    def __init__(self, model: HestonCFModel,
-                    alpha = 1.5,
-                    N = 4096,
-                    eta = 0.25):
-        self.model = model
+    def __init__(self, model: HestonCFModel = None,
+                    alpha=None,
+                    N=None,
+                    eta=None,
+                    cfg=None):
+        cfg = resolve_config(cfg)
+        fft_cfg = cfg["fft"]
+        alpha = fft_cfg["alpha"] if alpha is None else alpha
+        N = fft_cfg["N"] if N is None else N
+        eta = fft_cfg["eta"] if eta is None else eta
+
+        self.model = model if model is not None else HestonCFModel.from_cfg(cfg)
         self.alpha = alpha
         self.N = N
         self.eta = eta

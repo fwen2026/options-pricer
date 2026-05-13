@@ -4,22 +4,19 @@ sys.path.insert(0, '.')
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from pricing.heston.heston_mc import HestonModel
+from src.pricing.heston_mc import HestonModel
+from src.util.synthetic_iv_config import load_synthetic_iv_config
 
 
-# Typical Heston params
-model = HestonModel(
-    S0=100, v0=0.04,
-    theta=0.04, rho=-0.7, kappa=1.5, xi=0.3, r=0.05,
-    dt=1e-3
-)
+cfg = load_synthetic_iv_config()
+model = HestonModel.from_cfg(cfg)
 
 T = 1.0
 steps = int(T / model.dt)
 
 # --- 1. Visual: 100 paths ---
 print("Generating 100 paths for visualization...")
-S, v = model.generate_prices(seed=42, steps=steps, paths=100)
+S, v = model.generate_prices(seed=cfg["seed"], steps=steps, paths=100, cfg=cfg)
 
 fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
@@ -44,7 +41,7 @@ print("Saved: artifacts/plots/heston_mc_paths.png")
 # --- 2. Martingale test (no-arbitrage) ---
 # Under risk-neutral measure, E[S_T * exp(-rT)] should equal S0.
 print("\nMartingale test (50k paths)...")
-S_large, v_large = model.generate_prices(seed=123, steps=steps, paths=50_000)
+S_large, v_large = model.generate_prices(seed=123, steps=steps, paths=50_000, cfg=cfg)
 
 S_T = S_large[-1]
 discounted_mean = np.exp(-model.r * T) * np.mean(S_T)
@@ -86,6 +83,6 @@ else:
 print("\nTiming benchmarks:")
 for n_paths in [1_000, 10_000, 50_000, 100_000]:
     start = time.perf_counter()
-    model.generate_prices(seed=0, steps=steps, paths=n_paths)
+    model.generate_prices(seed=0, steps=steps, paths=n_paths, cfg=cfg)
     elapsed = time.perf_counter() - start
     print(f"  {n_paths:>7,} paths, {steps} steps: {elapsed:.2f}s")

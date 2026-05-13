@@ -1,6 +1,13 @@
+import sys
+sys.path.insert(0, '.')
+
 import numpy as np
-from pricing.bs.black_scholes import BlackScholesOption
-from pricing.bs.implied_vol_solver import implied_vol_solver
+from src.pricing.black_scholes import BlackScholesOption
+from src.pricing.implied_vol_solver import implied_vol_solver
+from src.util.synthetic_iv_config import load_synthetic_iv_config
+
+
+CFG = load_synthetic_iv_config()
 
 
 def test_roundtrip_atm_call():
@@ -8,7 +15,7 @@ def test_roundtrip_atm_call():
     S, K, T, r, sigma = 100, 100, 0.5, 0.02, 0.25
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.call_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="call")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="call", cfg=CFG)
     assert abs(iv - sigma) < 1e-5, f"Expected {sigma}, got {iv}"
 
 
@@ -16,7 +23,7 @@ def test_roundtrip_itm_call():
     S, K, T, r, sigma = 120, 100, 1.0, 0.02, 0.30
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.call_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="call")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="call", cfg=CFG)
     assert abs(iv - sigma) < 1e-5, f"Expected {sigma}, got {iv}"
 
 
@@ -24,7 +31,7 @@ def test_roundtrip_otm_call():
     S, K, T, r, sigma = 80, 100, 0.25, 0.02, 0.40
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.call_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="call")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="call", cfg=CFG)
     assert abs(iv - sigma) < 1e-5, f"Expected {sigma}, got {iv}"
 
 
@@ -32,7 +39,7 @@ def test_roundtrip_put():
     S, K, T, r, sigma = 95, 100, 0.5, 0.02, 0.20
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.put_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="put")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="put", cfg=CFG)
     assert abs(iv - sigma) < 1e-5, f"Expected {sigma}, got {iv}"
 
 
@@ -40,7 +47,7 @@ def test_roundtrip_high_vol():
     S, K, T, r, sigma = 100, 100, 0.1, 0.02, 0.80
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.call_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="call")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="call", cfg=CFG)
     assert abs(iv - sigma) < 1e-4, f"Expected {sigma}, got {iv}"
 
 
@@ -48,7 +55,7 @@ def test_roundtrip_low_vol():
     S, K, T, r, sigma = 100, 100, 1.0, 0.02, 0.05
     option = BlackScholesOption(S, K, T, r, sigma)
     price = option.call_price()
-    iv = implied_vol_solver(S, K, T, r, price, option_type="call")
+    iv = implied_vol_solver(S, K, T, r, price, option_type="call", cfg=CFG)
     assert abs(iv - sigma) < 1e-5, f"Expected {sigma}, got {iv}"
 
 
@@ -71,7 +78,7 @@ def test_roundtrip_batch():
         if option.vega() < 1e-4:
             continue
         try:
-            iv = implied_vol_solver(S, K, T, r, float(price), option_type="call")
+            iv = implied_vol_solver(S, K, T, r, float(price), option_type="call", cfg=CFG)
             if abs(iv - sigma) > 1e-4:
                 failures.append((S, K, T, sigma, iv))
         except Exception as e:

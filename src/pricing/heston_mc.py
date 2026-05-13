@@ -1,9 +1,22 @@
 import numpy as np
+from src.util.synthetic_iv_config import config_value, resolve_config
 
 class HestonMCSim:
-    def __init__(self, S0, v0, 
-                    theta, rho, kappa, xi, r,
-                    dt=1e-3):
+    def __init__(self, S0=None, v0=None,
+                    theta=None, rho=None, kappa=None, xi=None, r=None,
+                    dt=None,
+                    cfg=None):
+        if cfg is not None or dt is None or any(x is None for x in (S0, v0, theta, rho, kappa, xi, r)):
+            params = self._params_from_cfg(resolve_config(cfg))
+            S0 = params["S0"] if S0 is None else S0
+            v0 = params["v0"] if v0 is None else v0
+            theta = params["theta"] if theta is None else theta
+            rho = params["rho"] if rho is None else rho
+            kappa = params["kappa"] if kappa is None else kappa
+            xi = params["xi"] if xi is None else xi
+            r = params["r"] if r is None else r
+            dt = params["dt"] if dt is None else dt
+
         self.S0 = S0
         self.v0 = v0
         self.theta = theta
@@ -12,6 +25,29 @@ class HestonMCSim:
         self.xi = xi
         self.r = r
         self.dt = dt
+
+
+    @classmethod
+    def from_cfg(cls, cfg=None, **overrides):
+        params = cls._params_from_cfg(resolve_config(cfg))
+        params.update({k: v for k, v in overrides.items() if v is not None})
+        return cls(**params)
+
+
+    @staticmethod
+    def _params_from_cfg(cfg):
+        cfg = resolve_config(cfg)
+        heston_cfg = cfg["heston"]
+        return {
+            "S0": config_value(heston_cfg["s0"]),
+            "v0": config_value(heston_cfg["v0"]),
+            "theta": config_value(heston_cfg["theta"]),
+            "rho": config_value(heston_cfg["rho"]),
+            "kappa": config_value(heston_cfg["kappa"]),
+            "xi": config_value(heston_cfg["xi"]),
+            "r": config_value(heston_cfg["r"]),
+            "dt": config_value(cfg.get("mc", {}).get("dt", 1e-3)),
+        }
         
         
     def get_initial_conditions(self):
@@ -19,8 +55,18 @@ class HestonMCSim:
         return self.v0, self.S0
 
 
-    def update(self, S0, v0, theta, rho, kappa, xi, r):
+    def update(self, S0=None, v0=None, theta=None, rho=None, kappa=None, xi=None, r=None, cfg=None):
         """Updates simulation params"""
+        if cfg is not None:
+            params = self._params_from_cfg(cfg)
+            S0 = params["S0"] if S0 is None else S0
+            v0 = params["v0"] if v0 is None else v0
+            theta = params["theta"] if theta is None else theta
+            rho = params["rho"] if rho is None else rho
+            kappa = params["kappa"] if kappa is None else kappa
+            xi = params["xi"] if xi is None else xi
+            r = params["r"] if r is None else r
+
         self.S0 = S0
         self.v0 = v0
         self.theta = theta
@@ -41,7 +87,7 @@ class HestonMCSim:
     
     
     def get_dv(self, v, dZ2):
-        """Try Naive Euler on vol first. If it doesn't work, revert to Andersen QE"""
+        """Try Truncated Euler on vol first. If it doesn't work, revert to Andersen QE"""
         dv = self.dt * (self.kappa * (self.theta - v)) + self.xi * np.sqrt(v * self.dt) * dZ2
         return dv
     
@@ -53,11 +99,16 @@ class HestonMCSim:
         
     
     def generate_prices(self,
-                        seed=42,
-                        steps=1000,
-                        paths=100_000
+                        seed=None,
+                        steps=None,
+                        paths=None,
+                        cfg=None
         ):
             """Monte-Carlo simulation, 100000 paths as default."""
+            cfg = resolve_config(cfg)
+            seed = cfg["seed"] if seed is None else seed
+            steps = cfg.get("mc", {}).get("steps", 1000) if steps is None else steps
+            paths = cfg["dataset"]["num_samples"] if paths is None else paths
             rng = np.random.default_rng(seed=seed)
 
             S = np.empty((steps+1, paths))
@@ -77,3 +128,4 @@ class HestonMCSim:
                 v[t+1] = np.maximum(v[t+1], 0)
 
             return S, v
+

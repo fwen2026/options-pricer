@@ -3,14 +3,13 @@ sys.path.insert(0, '.')
 
 import time
 import numpy as np
-from src.pricing.heston.heston_cf import HestonCFModel, CarrMadanSolver
+from src.pricing.heston_cf import HestonCFModel, CarrMadanSolver
+from src.util.synthetic_iv_config import load_synthetic_iv_config
 
-model = HestonCFModel(
-    S0=100, v0=0.04,
-    theta=0.04, rho=-0.7, kappa=1.5, xi=0.3, r=0.05
-)
+cfg = load_synthetic_iv_config()
+model = HestonCFModel.from_cfg(cfg)
 
-solver = CarrMadanSolver(model)
+solver = CarrMadanSolver(model, cfg=cfg)
 
 # Single price: ATM call, T=1
 K = 100

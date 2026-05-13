@@ -1,0 +1,76 @@
+fft:
+  N: 4096
+  alpha: 1.5
+  eta: 0.25
+
+surface_grid:
+  use_lm: true
+  num_strikes: 64
+  lm_min : -1.5 # standard. no weird itm or otm stuff for now
+  lm_max: 1.5 
+
+  t_min: 0.01
+  t_max: 2.0
+  t_distrib: log
+  t_steps: 32
+
+heston:
+    s0: 100
+    r: 0.05
+    
+    v0:
+      min: 0.01
+      max: 0.09
+    
+    theta:
+      min: 0.01
+      max: 0.09
+    
+    kappa:
+      min: 0.5
+      max: 5.0
+
+    xi:
+      min: 0.2
+      max: 1.2
+    
+    rho:
+      min: -0.95
+      max: -0.1
+
+seed: 42
+
+dataset:
+  num_samples: 100000
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+  dtype: float32
+  save_prices: true
+  save_iv: true
+
+iv_inversion:
+  primary_method: newton
+  fallback_method: brentq
+
+  bounds:
+    min: 1.0e-6
+    max: 5.0
+
+  newton:
+    tolerance: 1.0e-10
+    derivative_tolerance: 1.0e-12
+    max_iterations: 1000
+    numerical_dx: 1.0e-8
+    clamp_to_bounds: true
+
+  brentq:
+    xtol: 1.0e-8
+    max_iterations: 200
+
+  seed:
+    method: atm_brenner_else_moneyness
+    min_sigma: 0.01
+    atm_log_m_threshold: 0.5
+  
