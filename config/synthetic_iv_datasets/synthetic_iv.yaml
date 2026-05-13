@@ -4,14 +4,14 @@ fft:
   eta: 0.25
 
 surface_grid:
-  t_min: 0.01
+  t_min: 0.03
   t_max: 2.0
   log_t: true
   t_steps: 32
 
   use_lm: true
-  lm_min: -2.0
-  lm_max: 2.0
+  lm_min: -0.75
+  lm_max: 0.75
   lm_steps: 96
 
 heston:

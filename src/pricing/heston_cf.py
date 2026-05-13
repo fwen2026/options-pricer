@@ -23,6 +23,11 @@ class HestonCFModel:
         self.r = r
 
 
+    @property
+    def params(self):
+        return np.array([self.v0, self.theta, self.kappa, self.xi, self.rho], dtype=float)
+
+
     @classmethod
     def from_cfg(cls, cfg=None, rng=None, **overrides):
         params = cls._params_from_cfg(resolve_config(cfg), rng=rng)
