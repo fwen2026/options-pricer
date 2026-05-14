@@ -113,7 +113,22 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
         "total_variance": total_variance_flat[valid],
         "params": params_flat[valid],
     }
+    
 
+def generate_full_dataset(cfg=None):
+    """Generates multiple surfaces and concatenates them into one dataset."""
+    cfg = resolve_config(cfg)
+    rng = np.random.default_rng(cfg["seed"])
+    cfg_dataset = cfg["dataset"]
+    surfaces = []
+    for surface_id in range(cfg_dataset["num_samples"]):
+        surface_data = generate_single_surface(surface_id, cfg=cfg, rng=rng)
+        surfaces.append(surface_data)
+    return {
+        key: np.concatenate([surface[key] for surface in surfaces])
+        for key in surfaces[0].keys()
+    }
+    
 
 def _local_call_arbitrage_mask(K_grid, C_grid, tolerance=1e-8):
     """Mark points that satisfy local call monotonicity and convexity checks."""
