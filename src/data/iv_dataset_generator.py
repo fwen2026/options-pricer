@@ -4,7 +4,7 @@ from src.pricing.implied_vol_solver import implied_vol_solver
 import numpy as np
 
 
-# These are mostly a list of helper funcs for dataset generation scripts
+# these are mostly a list of helper funcs for dataset generation scripts
 
 def generate_single_surface(surface_id, cfg=None, rng=None):
     """Generate one Heston price surface on the FFT strike grid."""
@@ -43,23 +43,23 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
     lm_grid = lm_grid[sort_idx]
     C_grid = C_grid[:, sort_idx]
 
-    # interpolate onto a 96 element canonical array
-    target_lm = np.linspace(cfg_surface["lm_min"], cfg_surface["lm_max"], cfg_surface["lm_steps"])
+    # # interpolate onto a 96 element canonical array
+    # target_lm = np.linspace(cfg_surface["lm_min"], cfg_surface["lm_max"], cfg_surface["lm_steps"])
 
-    resampled_C = np.array([
-        np.interp(target_lm, lm_grid, row)
-        for row in C_grid
-    ])
+    # resampled_C = np.array([
+    #     np.interp(target_lm, lm_grid, row)
+    #     for row in C_grid
+    # ])
 
     # FINALLY time for reshaping and input generation.
-    TT, LM = np.meshgrid(T_grid, target_lm, indexing="ij")
+    TT, LM = np.meshgrid(T_grid, lm_grid, indexing="ij")
     KK = model.S0 / np.exp(LM)
 
     T_flat = TT.ravel()
     LM_flat = LM.ravel()
     
     sqrt_T_flat = np.sqrt(T_flat)
-    C_flat = resampled_C.ravel()
+    C_flat = C_grid.ravel()
     K_flat = KK.ravel()
     
     forward_flat = model.S0 * np.exp(model.r * T_flat)
@@ -71,7 +71,7 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
     S0_flat = np.full_like(T_flat, model.S0)
     surface_id_flat = np.full(T_flat.shape, surface_id, dtype=int)
     
-    arbitrage_mask = _local_call_arbitrage_mask(KK, resampled_C)
+    arbitrage_mask = arbitrage_filter(KK, C_grid)
 
     iv_flat = np.full_like(T_flat, np.nan)
     for i in range(len(T_flat)):
@@ -130,12 +130,22 @@ def generate_full_dataset(cfg=None):
     }
     
 
-def _local_call_arbitrage_mask(K_grid, C_grid, tolerance=1e-8):
-    """Mark points that satisfy local call monotonicity and convexity checks."""
+def train_test_split(dataset, cfg=None):
+    """Performs train/test/split by surface ID"""
+    # Split by surface. We're not testing the model on BS.
+    train = {}
+    test = {}
+    for key in dataset.keys():
+        train[key], test[key] = train_test_split(dataset[key], test_size=0.2, random_state=cfg["seed"])
+    return train, test
+
+
+def arbitrage_filter(K_grid, C_grid, tolerance=1e-8):
+    """Validity check for generated prices (should be monotonically increasing)"""
     finite = np.isfinite(K_grid) & np.isfinite(C_grid)
     mask = finite.copy()
 
-    # K decreases as log-moneyness increases, so call prices should increase along columns.
+    # check if C increases monotonically with log moneyness. 
     dC = np.diff(C_grid, axis=1)
     monotone_pairs = dC >= -tolerance
     mask[:, :-1] &= monotone_pairs

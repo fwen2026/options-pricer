@@ -61,7 +61,7 @@ iv_inversion:
   newton:
     tolerance: 1.0e-10
     derivative_tolerance: 1.0e-12
-    max_iterations: 1000
+    max_iterations: 50
     numerical_dx: 1.0e-8
     clamp_to_bounds: true
 
