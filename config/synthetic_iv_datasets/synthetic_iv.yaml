@@ -10,8 +10,8 @@ surface_grid:
   t_steps: 32
 
   use_lm: true
-  lm_min: -0.75
-  lm_max: 0.75
+  lm_min: -1.0
+  lm_max: 1.0
   lm_steps: 96
 
 heston:

@@ -118,12 +118,6 @@ def generate_full_dataset(cfg=None):
         key: np.concatenate([surface[key] for surface in surfaces])
         for key in surfaces[0].keys()
     }
-    
-    
-def save_dataset(dataset, cfg):
-    save_path = cfg["save_path"]
-    np.savez_compressed(save_path, **dataset)
-    print(f"Dataset saved to {save_path}")
 
 
 def arbitrage_filter(K_grid, C_grid, tolerance=1e-8):
