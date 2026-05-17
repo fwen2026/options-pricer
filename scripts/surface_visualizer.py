@@ -1,36 +1,39 @@
+import sys
+sys.path.insert(0, '.')
 
+import argparse
+import numpy as np
 
-# import plotly.express as px
-# import plotly.graph_objects as go
-# import numpy as np
+from src.data.visualization import visualize_surface, save_figure
+from src.util.synthetic_iv_config import load_synthetic_iv_config
 
-# from src.data.dataset_io import load_single_datapoint
+if __name__ == "__main__":
+    cfg = load_synthetic_iv_config("config/synthetic_iv_datasets/synthetic_iv.yaml")
 
-# def visualize_surface_3d(cfg, surface_id: int, use_total_variance: bool, use_heatmap: bool):
-#     surface_data = load_single_datapoint(cfg["dataset_path"], surface_id, "surface_id")
+    parser = argparse.ArgumentParser(description="Visualize a single IV surface from the dataset")
+    parser.add_argument("--path", type=str, default=cfg["save_path"],
+                        help="Path to the .npz dataset (default: config save_path)")
+    parser.add_argument("--surface-id", type=int, default=None,
+                        help="Surface ID to plot (default: random)")
+    parser.add_argument("--total-variance", action="store_true",
+                        help="Plot total variance instead of IV")
+    parser.add_argument("--heatmap", action="store_true",
+                        help="Use heatmap instead of 3D surface")
+    parser.add_argument("--output", type=str, default=None,
+                        help="Save to file (.html or .png) instead of opening in browser")
+    args = parser.parse_args()
 
-#     x_raw = surface_data["log_moneyness"]
-#     y_raw = surface_data["T"]
-#     z_raw = surface_data["total_variance"] if use_total_variance else surface_data["iv"]
+    with np.load(args.path) as data:
+        ids = np.unique(data["surface_id"])
 
-#     x_unique = np.unique(x_raw)
-#     y_unique = np.unique(y_raw) # uniqueness check. probably unnecessary but still good to have
+    sid = args.surface_id if args.surface_id is not None else int(np.random.choice(ids))
+    print(f"Plotting surface_id={sid}  total_variance={args.total_variance}  heatmap={args.heatmap}")
 
-#     z_grid = np.reshape(z_raw, (len(y_unique), len(x_unique)))
-#     plot_style = go.Surface if not use_heatmap else go.Heatmap
-#     fig = go.Figure(data=[plot_style(
-#         x=x_unique,
-#         y=y_unique,
-#         z=z_grid,
-#         colorscale='Viridis',
-#         colorbar=dict(
-#             title='Total Variance' if use_total_variance else 'Implied Volatility'
-#             ),
-#     )])
-    
-#     return fig
+    fig = visualize_surface({"dataset_path": args.path}, sid, args.total_variance, args.heatmap)
 
-# def savez
-
-# if __name__ == "__main__":
-#     visualize_surface_3d(cfg, surface_id, use_total_variance, use_heatmap)
+    if args.output:
+        ext = args.output.rsplit(".", 1)[-1]
+        save_figure(fig, args.output, ext)
+        print(f"Saved to {args.output}")
+    else:
+        fig.show()
