@@ -1,6 +1,8 @@
 import numpy as np
 from src.util.synthetic_iv_config import config_value, resolve_config
 
+
+# right now this is mostly a validity check for heston_cf.
 class HestonMCSim:
     def __init__(self, S0=None, v0=None,
                     theta=None, rho=None, kappa=None, xi=None, r=None,
