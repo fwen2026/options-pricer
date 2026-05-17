@@ -6,24 +6,28 @@ def numerical_derivative(f, x, dx=1e-8):
     return (f(x + dx) - f(x)) / (dx)
 
 
-def vectorized_newton_raphson(f, x0, df=None,
-                                tolerance=1e-6,
-                                iterations=50,
-                                numerical_dx=1e-8,
-                                derivative_tolerance=1e-8):
+def newton_raphson_solver(f, x0, df=None,
+                            tolerance=1e-6,
+                            derivative_tolerance=1e-8,
+                            iterations=50,
+                            bounds=(1e-6, 5.0),
+                            numerical_dx=1e-8,
+                            clamp_to_bounds=True):
     """
     Vectorized Newton-Raphson solver a function f. Notes: f and df should be vectorized in and of themselves.
-    Also returns a mask of elements that did converge.
+    Also returns a mask of elements that did converge. 
     """
     x = x0 # list of sigma values
     converged = np.zeros_like(x, dtype=bool)
+    lo, hi = bounds
     
     for _ in range(iterations):
         fx = f(x)
         dfx = df(x) if df else numerical_derivative(f, x, dx=numerical_dx)
         zero_derivative = np.abs(dfx) < derivative_tolerance
+        out_of_bounds = x <= lo or x > hi
 
-        step = np.where(converged | zero_derivative, 0.0, fx / dfx) # checks in scalar version are replaced with freezes
+        step = np.where(out_of_bounds | converged | zero_derivative, 0.0, fx / dfx) # checks in scalar version are replaced with freezes
         x = x - step
         new_converged = np.abs(fx) < tolerance
         converged |= new_converged
@@ -41,7 +45,7 @@ def newton_raphson_solver(f, x0, df=None,
                             numerical_dx=1e-8,
                             clamp_to_bounds=True):
     """
-    Custom Newton-Raphson solver on a function f. If no derivative df is given, computes a numerical derivative.
+    Custom scalar Newton-Raphson solver on a function f. If no derivative df is given, computes a numerical derivative.
     Solver is clamped to stay within bounds (idt scipy's solver does this?).
     """
     x = x0

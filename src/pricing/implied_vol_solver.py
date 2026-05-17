@@ -6,14 +6,14 @@ import numpy as np
 import math
 
 
-def implied_vol_solver(S: float, K: float, T: float, r: float, market_price: float,
+def implied_vol_solver(S_arr: float, K_arr: float, T_arr: float, r_arr: float, market_price_arr: float,
                        option_type: str = "call",
                        cfg=None) -> float:
     """
-    Solve for the implied volatility of a European option using the Black-Scholes model.
+    Solve for the implied volatility of an array of European options using the Black-Scholes model.
     Newton-Raphson with clamped steps, falling back to Brent's on failure.
     """
-    option = BlackScholesOption(S=S, K=K, T=T, r=r)
+    option = BlackScholesOption(S=S_arr, K=K_arr, T=T_arr, r=r_arr)
     price_fn = option.call_price if option_type == "call" else option.put_price
     iv_cfg = resolve_config(cfg)["iv_inversion"]
     bounds = (iv_cfg["bounds"]["min"], iv_cfg["bounds"]["max"])
@@ -21,20 +21,20 @@ def implied_vol_solver(S: float, K: float, T: float, r: float, market_price: flo
 
     def objective(sigma):
         option.sigma = sigma
-        return price_fn() - market_price
+        return price_fn() - market_price_arr
 
     def vega(sigma):
         option.sigma = sigma
         return option.vega()
 
     def get_seed_sigma():
-        log_moneyness = np.log(S / K)
+        log_moneyness = np.log(S_arr / K_arr)
         min_sigma = seed_cfg["min_sigma"]
         atm_threshold = seed_cfg["atm_log_m_threshold"]
         if abs(log_moneyness) < atm_threshold:
-            return max(math.sqrt(2 * math.pi / T) * (market_price / S), min_sigma)
+            return max(math.sqrt(2 * math.pi / T_arr) * (market_price_arr / S_arr), min_sigma)
         else:
-            return max(math.sqrt(2 * abs(log_moneyness + r * T) / T), min_sigma)
+            return max(math.sqrt(2 * abs(log_moneyness + r_arr * T_arr) / T_arr), min_sigma)
 
     # If Newton Raphson fails, fall back to Brent's method.
     try:
