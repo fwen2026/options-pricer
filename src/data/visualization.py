@@ -3,6 +3,7 @@ import numpy as np
 
 from src.data.dataset_io import load_single_datapoint
 
+
 def visualize_surface(cfg, surface_id: int, use_total_variance: bool, use_heatmap: bool):
     surface_data = load_single_datapoint(cfg["dataset_path"], surface_id, "surface_id")
 
@@ -29,6 +30,7 @@ def visualize_surface(cfg, surface_id: int, use_total_variance: bool, use_heatma
     )])
     
     return fig
+
 
 def save_figure(fig, filename, style):
     if style == "png":
