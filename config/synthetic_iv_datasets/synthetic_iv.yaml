@@ -41,7 +41,7 @@ heston:
 seed: 42
 
 dataset:
-  num_samples: 5000
+  num_samples: 10000
   split:
     train: 0.8
     val: 0.1
@@ -73,4 +73,5 @@ iv_inversion:
     method: atm_brenner_else_moneyness
     min_sigma: 0.01
     atm_log_m_threshold: 0.5
-  
+
+save_path: artifacts/data/synthetic_iv_dataset.npz

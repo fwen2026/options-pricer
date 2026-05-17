@@ -41,9 +41,9 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
     sort_idx = np.argsort(lm_grid)
     lm_grid = lm_grid[sort_idx]
     C_grid = C_grid[:, sort_idx]
-    K_native = model.S0 / np.exp(lm_grid)
+    K_sorted = model.S0 / np.exp(lm_grid) # resort to re sorting :p
 
-    arbitrage_mask = arbitrage_filter(np.broadcast_to(K_native, C_grid.shape), C_grid)
+    arbitrage_mask = arbitrage_filter(np.broadcast_to(K_sorted, C_grid.shape), C_grid)
 
     TT, LM = np.meshgrid(T_grid, lm_grid, indexing="ij")
     KK = model.S0 / np.exp(LM)
@@ -108,23 +108,22 @@ def generate_full_dataset(cfg=None):
     rng = np.random.default_rng(cfg["seed"])
     cfg_dataset = cfg["dataset"]
     surfaces = []
-    for surface_id in range(cfg_dataset["num_samples"]):
+    total = cfg_dataset["num_samples"]
+    for surface_id in range(total):
         surface_data = generate_single_surface(surface_id, cfg=cfg, rng=rng)
         surfaces.append(surface_data)
+        if surface_id % 50 == 0:
+            print(f"  {surface_id}/{total}", flush=True)
     return {
         key: np.concatenate([surface[key] for surface in surfaces])
         for key in surfaces[0].keys()
     }
     
-
-def train_test_split(dataset, cfg=None):
-    """Performs train/test/split by surface ID"""
-    # Split by surface. We're not testing the model on BS.
-    train = {}
-    test = {}
-    for key in dataset.keys():
-        train[key], test[key] = train_test_split(dataset[key], test_size=0.2, random_state=cfg["seed"])
-    return train, test
+    
+def save_dataset(dataset, cfg):
+    save_path = cfg["save_path"]
+    np.savez_compressed(save_path, **dataset)
+    print(f"Dataset saved to {save_path}")
 
 
 def arbitrage_filter(K_grid, C_grid, tolerance=1e-8):
