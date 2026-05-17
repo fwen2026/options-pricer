@@ -18,11 +18,6 @@ def load_dataset(path : str | Path) -> dict:
     
 
 def load_single_datapoint(path : str | Path, index: int, label: str) -> dict:
-    load_path = path
-    
-    dataset_filter = data[label] == index
-    with np.load(load_path) as data:
-        return {
-            key: arr[dataset_filter]
-            for key, arr in data.items()
-        }
+    with np.load(path) as data:
+        dataset_filter = data[label] == index
+        return {key: arr[dataset_filter] for key, arr in data.items()}
