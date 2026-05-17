@@ -3,7 +3,7 @@ import numpy as np
 import yaml
 
 
-DEFAULT_SYNTHETIC_IV_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "synthetic_iv.yaml"
+DEFAULT_SYNTHETIC_IV_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "synthetic_iv_datasets" / "synthetic_iv.yaml"
 
 
 def load_synthetic_iv_config(path=None):

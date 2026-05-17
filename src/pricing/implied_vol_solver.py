@@ -1,5 +1,5 @@
 from src.pricing.black_scholes import BlackScholesOption
-from src.util.newton_raphson import newton_raphson_solver
+from src.util.newton_raphson import vectorized_newton_raphson
 from src.util.synthetic_iv_config import resolve_config
 from scipy.optimize import brentq
 import numpy as np
@@ -19,28 +19,30 @@ def implied_vol_solver(S_arr: float, K_arr: float, T_arr: float, r_arr: float, m
     bounds = (iv_cfg["bounds"]["min"], iv_cfg["bounds"]["max"])
     seed_cfg = iv_cfg["seed"]
 
-    def objective(sigma):
-        option.sigma = sigma
+    def objective(sigma_arr):
+        option.sigma = sigma_arr
         return price_fn() - market_price_arr
 
-    def vega(sigma):
-        option.sigma = sigma
+    def vega(sigma_arr):
+        option.sigma = sigma_arr
         return option.vega()
 
     def get_seed_sigma():
         log_moneyness = np.log(S_arr / K_arr)
         min_sigma = seed_cfg["min_sigma"]
         atm_threshold = seed_cfg["atm_log_m_threshold"]
-        if abs(log_moneyness) < atm_threshold:
-            return max(math.sqrt(2 * math.pi / T_arr) * (market_price_arr / S_arr), min_sigma)
-        else:
-            return max(math.sqrt(2 * abs(log_moneyness + r_arr * T_arr) / T_arr), min_sigma)
 
-    # If Newton Raphson fails, fall back to Brent's method.
-    try:
-        if iv_cfg["primary_method"] != "newton":
-            raise ValueError(f"Unsupported primary IV method: {iv_cfg['primary_method']}")
-        implied_vol = newton_raphson_solver(
+        atm_seed = np.maximum(np.sqrt(2 * math.pi / T_arr) * (market_price_arr / S_arr), min_sigma)
+        not_atm_seed = np.maximum(np.sqrt(2 * abs(log_moneyness + r_arr * T_arr) / T_arr), min_sigma)
+        
+        sigma_seed = np.where(abs(log_moneyness) < atm_threshold, atm_seed, not_atm_seed)
+        return np.maximum(sigma_seed, seed_cfg["min_sigma"])
+
+    if iv_cfg["primary_method"] != "newton":
+        raise ValueError(f"Unsupported primary IV method: {iv_cfg['primary_method']}")
+
+    # try newton-raphson first. per cell brent's on unconverged elements
+    implied_vol_arr, converge_mask = vectorized_newton_raphson(
             objective,
             get_seed_sigma(),
             df=vega,
@@ -48,18 +50,31 @@ def implied_vol_solver(S_arr: float, K_arr: float, T_arr: float, r_arr: float, m
             derivative_tolerance=iv_cfg["newton"]["derivative_tolerance"],
             iterations=iv_cfg["newton"]["max_iterations"],
             bounds=bounds,
-            numerical_dx=iv_cfg["newton"]["numerical_dx"],
-            clamp_to_bounds=iv_cfg["newton"]["clamp_to_bounds"],
-        )
-    except ValueError:
-        if iv_cfg["fallback_method"] != "brentq":
-            raise
-        implied_vol = brentq(
-            objective,
+            numerical_dx=iv_cfg["newton"]["numerical_dx"]
+    )
+
+    K_flat = np.ravel(K_arr)
+    T_flat = np.ravel(T_arr)
+    S_scalar = float(np.ravel(S_arr)[0]) if np.ndim(S_arr) > 0 else float(S_arr)
+    r_scalar = float(np.ravel(r_arr)[0]) if np.ndim(r_arr) > 0 else float(r_arr)
+    market_price_flat = np.ravel(market_price_arr)
+
+    for i in np.where(~converge_mask)[0]:
+        i = int(i)
+        cell = BlackScholesOption(S=S_scalar, K=float(K_flat[i]), T=float(T_flat[i]), r=r_scalar)
+        cell_price_fn = cell.call_price if option_type == "call" else cell.put_price
+        market_i = float(market_price_flat[i])
+
+        def objective_i(sigma, cell=cell, cell_price_fn=cell_price_fn, market_i=market_i):
+            cell.sigma = sigma
+            return float(cell_price_fn()) - market_i
+
+        implied_vol_arr[i] = brentq(
+            objective_i,
             bounds[0],
             bounds[1],
             xtol=iv_cfg["brentq"]["xtol"],
             maxiter=iv_cfg["brentq"]["max_iterations"],
         )
-        
-    return implied_vol
+    
+    return implied_vol_arr

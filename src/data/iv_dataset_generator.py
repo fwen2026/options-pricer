@@ -34,66 +34,53 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
     C_grid = np.stack(price_slices, axis=0)
     lm_grid = np.log(model.S0 / K_grid)
 
-    mask = (lm_grid >= cfg_surface["lm_min"]) & (lm_grid <= cfg_surface["lm_max"])
+    lm_filter = (lm_grid >= cfg_surface["lm_min"]) & (lm_grid <= cfg_surface["lm_max"])
+    lm_grid = lm_grid[lm_filter]
+    C_grid = C_grid[:, lm_filter]
 
-    lm_grid = lm_grid[mask]
-    C_grid = C_grid[:, mask]
-    
-    sort_idx = np.argsort(lm_grid) # sort because we invert the original K values.
+    sort_idx = np.argsort(lm_grid)
     lm_grid = lm_grid[sort_idx]
     C_grid = C_grid[:, sort_idx]
+    K_native = model.S0 / np.exp(lm_grid)
 
-    # # interpolate onto a 96 element canonical array
-    # target_lm = np.linspace(cfg_surface["lm_min"], cfg_surface["lm_max"], cfg_surface["lm_steps"])
+    arbitrage_mask = arbitrage_filter(np.broadcast_to(K_native, C_grid.shape), C_grid)
 
-    # resampled_C = np.array([
-    #     np.interp(target_lm, lm_grid, row)
-    #     for row in C_grid
-    # ])
-
-    # FINALLY time for reshaping and input generation.
     TT, LM = np.meshgrid(T_grid, lm_grid, indexing="ij")
     KK = model.S0 / np.exp(LM)
 
     T_flat = TT.ravel()
     LM_flat = LM.ravel()
-    
-    sqrt_T_flat = np.sqrt(T_flat)
-    C_flat = C_grid.ravel()
     K_flat = KK.ravel()
-    
-    forward_flat = model.S0 * np.exp(model.r * T_flat)
-    forward_LM_flat = np.log(forward_flat / K_flat)
+    C_flat = C_grid.ravel()
     discount_factor_flat = np.exp(-model.r * T_flat)
 
-    params_flat = np.tile(model.params, (T_flat.size, 1))
+    lower_bounds = np.maximum(model.S0 - K_flat * discount_factor_flat, 0.0)
+    candidate_mask = (
+        arbitrage_mask.ravel()
+        & np.isfinite(C_flat)
+        & (C_flat >= lower_bounds)
+        & (C_flat <= model.S0)
+    ) # filters before inverting to iv
 
+    iv_flat = np.full(T_flat.shape, np.nan) 
+    
+    if candidate_mask.any():
+        iv_flat[candidate_mask] = implied_vol_solver(
+            model.S0,
+            K_flat[candidate_mask],
+            T_flat[candidate_mask],
+            model.r,
+            C_flat[candidate_mask],
+            option_type="call",
+            cfg=cfg,
+        )
+
+    sqrt_T_flat = np.sqrt(T_flat)
+    forward_flat = model.S0 * np.exp(model.r * T_flat)
+    forward_LM_flat = np.log(forward_flat / K_flat)
+    params_flat = np.tile(model.params, (T_flat.size, 1))
     S0_flat = np.full_like(T_flat, model.S0)
     surface_id_flat = np.full(T_flat.shape, surface_id, dtype=int)
-    
-    arbitrage_mask = arbitrage_filter(KK, C_grid)
-
-    iv_flat = np.full_like(T_flat, np.nan)
-    for i in range(len(T_flat)):
-        if not arbitrage_mask.ravel()[i]:
-            continue
-        price = C_flat[i]
-        lower_bound = max(model.S0 - K_flat[i] * discount_factor_flat[i], 0.0)
-        if not np.isfinite(price) or price < lower_bound or price > model.S0:
-            continue
-        try:
-            iv_flat[i] = implied_vol_solver(
-                model.S0,
-                K_flat[i],
-                T_flat[i],
-                model.r,
-                price,
-                option_type="call",
-                cfg=cfg,
-            )
-        except ValueError:
-            continue
-
     total_variance_flat = iv_flat ** 2 * T_flat
     valid = np.isfinite(iv_flat)
     
