@@ -27,7 +27,7 @@ def vectorized_newton_raphson(f, x0, df=None,
         out_of_bounds = (x <= lo) | (x > hi)
         frozen = out_of_bounds | converged | zero_derivative
 
-        safe_dfx = np.where(zero_derivative, 1.0, dfx)  # prevent divide-by-zero, but frozen cells get step=0 anyways
+        safe_dfx = np.where(zero_derivative, 0.67, dfx)  # the 0.67 is just purely arbitrary to prevent a div by zero. also SIX SEVENNN
         step = np.where(frozen, 0.0, fx / safe_dfx)
         x = x - step
         converged |= np.abs(fx) < tolerance

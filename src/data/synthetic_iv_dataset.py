@@ -55,12 +55,15 @@ def generate_single_surface(surface_id, cfg=None, rng=None):
     discount_factor_flat = np.exp(-model.r * T_flat)
 
     lower_bounds = np.maximum(model.S0 - K_flat * discount_factor_flat, 0.0)
+    # Require minimum time value: deep-ITM, short-T cells have C ≈ intrinsic,
+    # so vega → 0 and the IV inversion diverges regardless of solver tolerance.
+    time_value = C_flat - lower_bounds
     candidate_mask = (
         arbitrage_mask.ravel()
         & np.isfinite(C_flat)
-        & (C_flat >= lower_bounds)
+        & (time_value >= 1e-3)
         & (C_flat <= model.S0)
-    ) # filters before inverting to iv
+    )
 
     iv_flat = np.full(T_flat.shape, np.nan) 
     
