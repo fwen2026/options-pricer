@@ -220,5 +220,6 @@ __marimo__/
 /artifacts
 ROADMAP.md
 CLAUDE.md
+AGENTS.md
 /.claude
 /.codex
