@@ -1,9 +1,3 @@
-"""
-Three-way correctness check for Heston call pricing:
-  MC (risk-neutral expectation) vs CF (our Carr-Madan integration) vs QuantLib.
-
-Fixed params with Feller condition satisfied (2κθ > ξ²) to minimise Euler discretisation bias.
-"""
 import sys
 sys.path.insert(0, '.')
 

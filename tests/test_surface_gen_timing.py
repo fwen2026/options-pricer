@@ -1,8 +1,3 @@
-"""
-Time generate_single_surface under the vectorized no-interp pipeline.
-Reports finite IV yield and per-phase breakdown to sanity-check FFT params
-and IV solver throughput.
-"""
 import sys
 sys.path.insert(0, '.')
 

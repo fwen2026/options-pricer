@@ -1,11 +1,3 @@
-"""
-Correctness tests for CarrMadanSolver.solve_fft.
-
-The dataset generation pipeline exclusively uses solve_fft(); only solve()
-and QuantLib are verified by test_heston_correctness.py. These tests close
-that gap by comparing FFT prices against both references across multiple
-expiries, and verify the K_grid stability assumption the pipeline relies on.
-"""
 import sys
 sys.path.insert(0, '.')
 
