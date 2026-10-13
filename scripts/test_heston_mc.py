@@ -4,13 +4,13 @@ sys.path.insert(0, '.')
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from src.pricing.heston_mc import HestonModel
+from src.pricing.heston_mc import HestonMCSim
 from src.util.synthetic_iv_config import load_synthetic_iv_config
 
 
 cfg = load_synthetic_iv_config()
 rng = np.random.default_rng(cfg["seed"])
-model = HestonModel.from_cfg(cfg, rng=rng)
+model = HestonMCSim.from_cfg(cfg, rng=rng)
 
 T = 1.0
 steps = int(T / model.dt)

@@ -5,7 +5,7 @@ import time
 import numpy as np
 from src.util.synthetic_iv_config import load_synthetic_iv_config, resolve_config
 from src.pricing.heston_cf import HestonCFModel, CarrMadanSolver
-from data.synthetic_iv_dataset import generate_single_surface, arbitrage_filter
+from src.data.synthetic_iv_dataset import generate_single_surface, arbitrage_filter
 
 
 NUM_SURFACES = 10

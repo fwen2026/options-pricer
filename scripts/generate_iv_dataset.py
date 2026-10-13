@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '.')
 
-from data.synthetic_iv_dataset import generate_full_dataset
+from src.data.synthetic_iv_dataset import generate_full_dataset
 from src.data.dataset_io import save_dataset
 from src.util.synthetic_iv_config import load_synthetic_iv_config
 
