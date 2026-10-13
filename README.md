@@ -1,60 +1,26 @@
-# Options Pricer
+# options-pricer
 
-A machine learning research project comparing how well different models approximate the Black-Scholes option pricing formula. Trained on synthetic data generated from the analytical BS solution, with evaluation across moneyness and expiry regimes.
+Generates implied volatility (IV) surfaces from the Heston model, as synthetic training data for ML volatility-surface research.
 
-## Models
+## Features
 
-- **Neural Network** (PyTorch) — 4-layer MLP with configurable architecture, hybrid MSE loss, log-space target transform
-- **XGBoost** — gradient boosted trees with the same feature engineering
-- **Elastic Net** — linear baseline with polynomial features
+- **Heston pricing:** characteristic function in its numerically stable form, Carr–Madan pricing by FFT (used for surfaces) and by direct quadrature, and a Monte Carlo simulator as a cross-check. FFT and quadrature prices are validated against QuantLib; Monte Carlo is checked against the quadrature price.
+- **IV inversion:** vectorized Newton–Raphson with a Brent fallback.
+- **Surface generation:** random Heston parameters → FFT price grid → no-arbitrage filtering → IV surface. Settings live in `config/synthetic_iv_datasets/synthetic_iv.yaml`.
+- **Stage 1 experiments:** ML approximations of Black–Scholes (NN, XGBoost, Elastic Net). Best was XGBoost at 0.0077 MAE and 2.47% mean relative error; see `notebooks/deprecated/`.
 
-## Key Results
+## Future Plans
 
-| Model | MAE | RMSE | Max Error | Mean Rel. Error |
-|-------|-----|------|-----------|-----------------|
-| XGB (no standardization) | **0.0077** | **0.0124** | **0.068** | **2.47%** |
-| NN (no standardization) | 0.0165 | 0.0261 | 0.224 | 8.69% |
-| XGB baseline | 0.0308 | 0.0754 | 1.075 | 4.24% |
-| NN baseline | 0.0478 | 0.1075 | 1.897 | 8.39% |
-
-Non-standardized XGBoost achieves near-perfect approximation (MAE < 0.01) on this problem.
-
-## Findings
-
-- **Standardization hurts on clean analytic data.** Log-transform + z-score warps the target into a harder optimization landscape without benefit.
-- **Feature engineering (log-moneyness) is significant.** Both models degrade 3-5x without it. The network must otherwise learn that only S/K matters.
-- **Hybrid loss improves tail accuracy** at the expense of aggregate metrics. The y-weighted MSE term pulls gradient toward cheap OTM options.
-- **NN architecture affects error magnitude, not shape.** The residual error pattern is structural to the MLP, not a capacity issue.
-
-## Structure
-
-```
-src/
-  pricing/        Black-Scholes pricer, implied vol solver
-  models/         PyTorch NN architecture
-  training/       Training scripts (NN, XGBoost, Elastic Net)
-  eval/           Validation and plotting
-  data/           Synthetic dataset generation
-  util/           Newton-Raphson, bisection solvers
-notebooks/        Ablation studies and performance comparisons
-artifacts/        Saved models, datasets, plots
-```
+- Stage 1 (done): ML approximation of Black–Scholes prices
+- Stage 2 (done): Heston pricer validated against QuantLib; synthetic IV surface generation
+- Stage 3: IV surface learning, using Heston as a fast synthetic data generator
+- Stages 4–5: forecast the next-period surface with small specialized models
 
 ## Usage
 
-```bash
-python -m src.data.dataset_generator
-
-python -m src.training.train_nn
-
-python -m src.training.train_xgboost
-
-python -m src.eval.validate --model-type xgboost
+```sh
+pip install -r requirements.txt
+pytest                                         # pricing and IV solver tests
+python scripts/generate_iv_dataset.py          # 10,000 surfaces by default; lower dataset.num_samples for a quick run
+python scripts/surface_visualizer.py --surface-id 0
 ```
-
-## Requirements
-
-```
-numpy, scipy, torch, matplotlib, scikit-learn, xgboost, pandas
-```
-Also see `requirements.txt`
