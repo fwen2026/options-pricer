@@ -1,12 +1,8 @@
 numpy
 scipy
-torch
 matplotlib
-scikit-learn
-xgboost
-optuna
-pandas
 PyYAML
 plotly
 QuantLib
 pytest
+torch

@@ -74,4 +74,4 @@ iv_inversion:
     min_sigma: 0.01
     atm_log_m_threshold: 0.5
 
-save_path: artifacts/data/synthetic_iv_dataset.npz
+save_path: data/synthetic_iv_dataset.npz
